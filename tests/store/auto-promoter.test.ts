@@ -55,6 +55,17 @@ function writeBrain(projectsDir: string, projectId: string, entries: KnowledgeEn
 	fs.writeFileSync(path.join(dir, "brain.jsonl"), content, "utf-8");
 }
 
+/** Write meta.json for a project, pointing to a fake src dir, and configure its git remote. */
+function writeMeta(projectsDir: string, projectId: string, remote: string): void {
+	const projDir = path.join(projectsDir, projectId);
+	const fakeProjectDir = path.join(projectsDir, projectId + "-src");
+	fs.mkdirSync(fakeProjectDir, { recursive: true });
+	fs.writeFileSync(
+		path.join(projDir, "meta.json"),
+		JSON.stringify({ projectDir: fakeProjectDir }),
+	);
+}
+
 function daysAgo(days: number): string {
 	return new Date(Date.now() - days * 86_400_000).toISOString();
 }
@@ -159,9 +170,17 @@ describe("scanForCrossProjectKnowledge — cross-project matching", () => {
 		const summary = "always initialize database connections in the module scope for reuse";
 		const newEntry = makeEntry({ id: "new", summary });
 
-		// Two other projects with a matching entry
+		// Two other projects with a matching entry — give each a distinct remote so they qualify as independent
 		writeBrain(projectsDir, "proj-alpha", [makeEntry({ id: "a", summary })]);
+		writeMeta(projectsDir, "proj-alpha", "git@github.com:org/alpha.git");
 		writeBrain(projectsDir, "proj-beta", [makeEntry({ id: "b", summary })]);
+		writeMeta(projectsDir, "proj-beta", "git@github.com:org/beta.git");
+
+		let remoteCallCount = 0;
+		mockExecFileSync.mockImplementation(() => {
+			remoteCallCount++;
+			return `git@github.com:org/repo-${remoteCallCount}.git` as unknown as Buffer;
+		});
 
 		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
 
@@ -194,7 +213,15 @@ describe("scanForCrossProjectKnowledge — cross-project matching", () => {
 		const newEntry = makeEntry({ id: "conn", summary });
 
 		writeBrain(projectsDir, "proj-1", [makeEntry({ id: "p1", summary })]);
+		writeMeta(projectsDir, "proj-1", "git@github.com:org/repo1.git");
 		writeBrain(projectsDir, "proj-2", [makeEntry({ id: "p2", summary })]);
+		writeMeta(projectsDir, "proj-2", "git@github.com:org/repo2.git");
+
+		let rc2 = 0;
+		mockExecFileSync.mockImplementation(() => {
+			rc2++;
+			return `git@github.com:org/repo-${rc2}.git` as unknown as Buffer;
+		});
 
 		scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
 
@@ -209,10 +236,18 @@ describe("scanForCrossProjectKnowledge — cross-project matching", () => {
 			makeEntry({ id: "p1a", summary: summaryA }),
 			makeEntry({ id: "p1b", summary: summaryB }),
 		]);
+		writeMeta(projectsDir, "proj-1", "git@github.com:org/multi1.git");
 		writeBrain(projectsDir, "proj-2", [
 			makeEntry({ id: "p2a", summary: summaryA }),
 			makeEntry({ id: "p2b", summary: summaryB }),
 		]);
+		writeMeta(projectsDir, "proj-2", "git@github.com:org/multi2.git");
+
+		let rc3 = 0;
+		mockExecFileSync.mockImplementation(() => {
+			rc3++;
+			return `git@github.com:org/multi-repo-${rc3}.git` as unknown as Buffer;
+		});
 
 		const entries = [
 			makeEntry({ id: "entryA", summary: summaryA }),
@@ -297,7 +332,15 @@ describe("scanForCrossProjectKnowledge — word overlap", () => {
 		const newEntry = makeEntry({ id: "new", summary });
 
 		writeBrain(projectsDir, "proj-a", [makeEntry({ id: "a", summary })]);
+		writeMeta(projectsDir, "proj-a", "git@github.com:org/jacc-a.git");
 		writeBrain(projectsDir, "proj-b", [makeEntry({ id: "b", summary })]);
+		writeMeta(projectsDir, "proj-b", "git@github.com:org/jacc-b.git");
+
+		let rc4 = 0;
+		mockExecFileSync.mockImplementation(() => {
+			rc4++;
+			return `git@github.com:org/jacc-repo-${rc4}.git` as unknown as Buffer;
+		});
 
 		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
 
@@ -317,6 +360,70 @@ describe("scanForCrossProjectKnowledge — word overlap", () => {
 		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
 
 		expect(result.quarantined).toBe(0);
+	});
+});
+
+
+describe("scanForCrossProjectKnowledge — null remote independence", () => {
+	it("does not quarantine when all projects have null git remotes (non-git dirs are not independent)", () => {
+		const summary = "always use connection pooling for database access efficiency";
+		const newEntry = makeEntry({ id: "new", summary });
+
+		// Three other projects with matching entries, but all have null remotes
+		for (let i = 0; i < 3; i++) {
+			writeBrain(projectsDir, `proj-null-${i}`, [makeEntry({ id: `m${i}`, summary })]);
+		}
+
+		// git remote throws for all (no remotes) — mockExecFileSync default is to throw
+		mockExecFileSync.mockImplementation(() => {
+			throw new Error("not a git repo");
+		});
+
+		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
+
+		// Null remotes are not independent — should NOT quarantine
+		expect(result.quarantined).toBe(0);
+	});
+});
+
+describe("scanForCrossProjectKnowledge — deduplication", () => {
+	it("does not create duplicate pending entries when called twice with the same entries", () => {
+		const summary = "use exponential backoff when retrying failed network requests";
+		const newEntry = makeEntry({ id: "dup-test", summary });
+
+		// Two independent projects with different remotes
+		for (let i = 0; i < 2; i++) {
+			const projId = `dedup-proj-${i}`;
+			const fakeProjectDir = path.join(tmpDir, projId + "-src");
+			fs.mkdirSync(fakeProjectDir, { recursive: true });
+			writeBrain(projectsDir, projId, [makeEntry({ id: `dm${i}`, summary })]);
+			fs.writeFileSync(
+				path.join(projectsDir, projId, "meta.json"),
+				JSON.stringify({ projectDir: fakeProjectDir }),
+			);
+		}
+
+		let remoteCounter = 0;
+		mockExecFileSync.mockImplementation(() => {
+			remoteCounter++;
+			return `git@github.com:org/dedup-repo-${remoteCounter}.git` as unknown as Buffer;
+		});
+
+		// First call — should quarantine 1 entry
+		const first = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
+		expect(first.quarantined).toBe(1);
+
+		// Reset remote counter for second call
+		remoteCounter = 0;
+
+		// Second call with same entry — should NOT create a duplicate
+		const second = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
+		expect(second.quarantined).toBe(0);
+
+		// Pending file should still have exactly 1 entry
+		const pendingPath = path.join(globalDir, "pending.jsonl");
+		const lines = fs.readFileSync(pendingPath, "utf-8").trim().split("\n").filter(Boolean);
+		expect(lines).toHaveLength(1);
 	});
 });
 

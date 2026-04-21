@@ -167,6 +167,9 @@ function mergeGlobalEntries(
 		return { ...entry, importance: entry.importance * catMultiplier * techMultiplier, crossProject: true };
 	});
 
+	// Sort by importance descending so the best global entries survive the budget cut
+	multiplied.sort((a, b) => b.importance - a.importance);
+
 	// Dynamic budget: global entries fill remaining space
 	const globalBudget = Math.max(10, config.global.maxEntries - projectEntries.length);
 	const trimmedGlobal = multiplied.slice(0, globalBudget);
@@ -260,6 +263,10 @@ async function cmdInject(args: string[]): Promise<void> {
 	}
 
 	if (event === "start") {
+		// Invalidate previous session's state for this project
+		const statePath = injectionStatePath(projectId);
+		try { unlinkSync(statePath); } catch { /* may not exist */ }
+
 		const merged = mergeGlobalEntries(entries, config, projectDir);
 		const verified = verifyEntries(merged, projectDir);
 		const ranked = rankEntries(verified, [], [], config.injection);
@@ -535,6 +542,16 @@ function cmdDemote(args: string[]): void {
 	console.log(`Demoted entry ${entryId} from global brain. ${filtered.length} entries remain.`);
 }
 
+const PREFERENCE_POISONING_PATTERNS: readonly RegExp[] = [
+	/\balways approve\b/i,
+	/\bskip review\b/i,
+	/\bignore warnings?\b/i,
+	/\bdon'?t verify\b/i,
+	/\bdo not verify\b/i,
+	/\bbypass\b/i,
+	/\bdisable check\b/i,
+];
+
 function cmdSetPreference(args: string[]): void {
 	const summary = args.join(" ");
 	if (!summary || summary.length < 10) {
@@ -543,7 +560,13 @@ function cmdSetPreference(args: string[]): void {
 		process.exit(1);
 	}
 
-	
+	for (const pattern of PREFERENCE_POISONING_PATTERNS) {
+		if (pattern.test(summary)) {
+			console.error(`Preference rejected: contains disallowed pattern "${pattern.source}". This looks like a prompt injection attempt.`);
+			process.exit(1);
+		}
+	}
+
 	const id = `ke_${randomBytes(6).toString("hex")}`;
 	const entry: KnowledgeEntry = {
 		id,
@@ -669,7 +692,7 @@ function cmdClear(): void {
 // -- Injection State Persistence --
 // Stored in a temp file per project so drift detection works across hook invocations.
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { tmpdir } from "node:os";
 

@@ -4,6 +4,37 @@ import * as path from "path";
 
 import type { BrainIndex, KnowledgeEntry } from "../types.js";
 
+const POISONING_PATTERNS: readonly RegExp[] = [
+    /\balways approve\b/i,
+    /\bskip review\b/i,
+    /\bignore warnings?\b/i,
+    /\bdon'?t verify\b/i,
+    /\bdo not verify\b/i,
+    /\bbypass\b/i,
+    /\bdisable check\b/i,
+];
+
+function isValidEntry(entry: unknown): entry is KnowledgeEntry {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const record = entry as Record<string, unknown>;
+
+    // Required field checks
+    if (typeof record.id !== "string") return false;
+    if (typeof record.summary !== "string") return false;
+    if (typeof record.reasoning !== "string") return false;
+    if (typeof record.category !== "string") return false;
+    if (typeof record.confidence !== "number") return false;
+    if (typeof record.importance !== "number") return false;
+
+    // Poisoning check on summary and reasoning
+    for (const pattern of POISONING_PATTERNS) {
+        if (pattern.test(record.summary as string)) return false;
+        if (pattern.test(record.reasoning as string)) return false;
+    }
+
+    return true;
+}
+
 const BRAIN_FILE = "brain.jsonl";
 const INDEX_FILE = "index.json";
 
@@ -59,7 +90,11 @@ export class BrainStore {
 			const trimmed = line.trim();
 			if (!trimmed) continue;
 			try {
-				entries.push(JSON.parse(trimmed) as KnowledgeEntry);
+				const parsed = JSON.parse(trimmed);
+				if (isValidEntry(parsed)) {
+					entries.push(parsed);
+				}
+				// else: silently skip invalid/poisoned entries (same as corrupt JSON)
 			} catch {
 				// Tolerate a corrupt tail line from an interrupted write.
 			}

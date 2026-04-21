@@ -212,6 +212,14 @@ function validateSingleEntry(
 		}
 	}
 
+	// Anti-poisoning check on reasoning (also injected into CLAUDE.md)
+	const reasoning = record.reasoning as string;
+	for (const pattern of POISONING_PATTERNS) {
+		if (pattern.test(reasoning)) {
+			return `Reasoning contains disallowed meta-instruction matching /${pattern.source}/i — potential prompt-injection attempt`;
+		}
+	}
+
 	// Duplicate / near-duplicate check against stored entries
 	for (const existing of existingEntries) {
 		const overlap = wordOverlap(summary, existing.summary);

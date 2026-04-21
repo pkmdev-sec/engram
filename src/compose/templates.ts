@@ -14,6 +14,13 @@ const SECTION_ORDER: ReadonlyArray<{ categories: EntryCategory[]; heading: strin
 	{ categories: ["file-purpose"], heading: "File Map" },
 ];
 
+// Strip HTML comment delimiters from brain content before injecting into CLAUDE.md.
+// If an entry's text contains <!-- END:pi-brain --> it would corrupt the managed
+// section markers on the next inject cycle.
+function sanitizeForClaudeMd(text: string): string {
+	return text.replace(/<!--/g, "").replace(/-->/g, "");
+}
+
 function buildEntryLine(ranked: RankedEntry): string {
 	const { entry, isStale } = ranked;
 	const parts: string[] = [];
@@ -30,7 +37,9 @@ function buildEntryLine(ranked: RankedEntry): string {
 	}
 
 	// Combine summary and reasoning on one line per spec.
-	const line = `${entry.summary}. ${entry.reasoning}`;
+	// Sanitize both fields to prevent embedded HTML comment markers from
+	// breaking the pi-brain managed section on the next inject.
+	const line = `${sanitizeForClaudeMd(entry.summary)}. ${sanitizeForClaudeMd(entry.reasoning)}`;
 	parts.push(line);
 
 	// Stale suffix: entry references files that have been modified since

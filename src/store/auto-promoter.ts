@@ -63,8 +63,8 @@ export function scanForCrossProjectKnowledge(
 		const matchingProjectIds: string[] = [];
 
 		for (const { projectId, entries: brainEntries, remote } of otherBrains) {
-			// Independence check: different git remotes
-			if (currentRemote && remote && currentRemote === remote) continue;
+			// Independence check: null remotes mean non-git dirs, which are not independent
+			if (!currentRemote || !remote || currentRemote === remote) continue;
 
 			const hasMatch = brainEntries.some(
 				(other) => wordOverlap(entry.summary, other.summary) > OVERLAP_THRESHOLD,
@@ -78,6 +78,14 @@ export function scanForCrossProjectKnowledge(
 		// Actually: 3+ independent projects means current project counts as 1
 		if (matchingProjectIds.length + 1 >= MIN_INDEPENDENT_PROJECTS) {
 			const allProjects = [currentProjectId, ...matchingProjectIds];
+
+			// Dedup: skip if already pending with similar summary
+			const existingPending = loadPendingEntries(globalDir);
+			const alreadyPending = existingPending.some(
+				(p) => wordOverlap(entry.summary, p.entry.summary) > OVERLAP_THRESHOLD,
+			);
+			if (alreadyPending) continue;
+
 			quarantineEntry(entry, allProjects, globalDir);
 			quarantined++;
 		}

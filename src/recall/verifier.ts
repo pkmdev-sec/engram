@@ -19,10 +19,21 @@ export function verifyEntries(
 	projectDir: string,
 ): KnowledgeEntry[] {
 	const now = new Date().toISOString();
-	const result: KnowledgeEntry[] = [];
 
+	// Find oldest entry timestamp for a single batched git query
+	let oldestTimestamp = now;
 	for (const entry of entries) {
-		const verified = buildVerificationState(entry, projectDir, now);
+		if (entry.timestamp < oldestTimestamp) {
+			oldestTimestamp = entry.timestamp;
+		}
+	}
+
+	// Single git call: get ALL files modified since oldest entry
+	const modifiedFiles = getModifiedFilesSince(oldestTimestamp, projectDir);
+
+	const result: KnowledgeEntry[] = [];
+	for (const entry of entries) {
+		const verified = buildVerificationState(entry, projectDir, now, modifiedFiles);
 
 		// Exclude entries where every referenced file is gone — they are dead
 		// knowledge. Entries with no files (topic-only) always pass through.
@@ -36,10 +47,37 @@ export function verifyEntries(
 	return result;
 }
 
+/**
+ * Returns the set of all file paths touched by any commit since `oldestTimestamp`.
+ * Uses a single `git log --name-only` call rather than one call per file.
+ * Returns an empty Set on any error (git unavailable, not a repo, etc.).
+ */
+function getModifiedFilesSince(
+	oldestTimestamp: string,
+	projectDir: string,
+): Set<string> {
+	try {
+		const output = execFileSync(
+			"git",
+			["log", "--name-only", "--format=", `--since=${oldestTimestamp}`, "--", "."],
+			{ cwd: projectDir, encoding: "utf8" },
+		);
+		const files = new Set<string>();
+		for (const line of output.split("\n")) {
+			const trimmed = line.trim();
+			if (trimmed) files.add(trimmed);
+		}
+		return files;
+	} catch {
+		return new Set();
+	}
+}
+
 function buildVerificationState(
 	entry: KnowledgeEntry,
 	projectDir: string,
 	now: string,
+	modifiedFiles: ReadonlySet<string>,
 ): VerificationState {
 	if (entry.files.length === 0) {
 		// Nothing to check on disk — carry forward any prior filesModified signal
@@ -61,7 +99,7 @@ function buildVerificationState(
 			anyExist = true;
 		}
 
-		if (wasModifiedSince(filePath, entry.timestamp, projectDir)) {
+		if (modifiedFiles.has(filePath)) {
 			anyModified = true;
 		}
 	}
@@ -71,27 +109,4 @@ function buildVerificationState(
 		filesExist: anyExist,
 		filesModified: anyModified,
 	};
-}
-
-/**
- * Returns true if `git log` reports any commits touching `filePath` since
- * `since` (an ISO-8601 timestamp). Returns false on any error.
- */
-function wasModifiedSince(
-	filePath: string,
-	since: string,
-	projectDir: string,
-): boolean {
-	try {
-		const output = execFileSync(
-			"git",
-			["log", `--since=${since}`, "--oneline", "--", filePath],
-			{ cwd: projectDir, encoding: "utf8" },
-		);
-		return output.trim().length > 0;
-	} catch {
-		// git not available, not a git repo, or any other failure — treat as
-		// unmodified rather than crashing the verification pass.
-		return false;
-	}
 }

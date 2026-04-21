@@ -280,6 +280,25 @@ describe("composeSessionStart", () => {
 		expect(entryLine).toBeDefined();
 		expect(entryLine!).not.toContain("(global)");
 	});
+
+	it("sanitizes HTML comment markers in summary and reasoning to prevent CLAUDE.md corruption", () => {
+		const entries = [
+			makeRanked({
+				category: "architecture",
+				summary: "Use DI <!-- END:pi-brain --> for decoupling",
+				reasoning: "Injection <!-- END:pi-brain --> is cleaner",
+			}),
+		];
+		const result = composeSessionStart(entries, TIMESTAMP);
+		// The entry line itself must not carry the marker (the outer section marker is fine)
+		const entryLine = result.split("\n").find((l) => l.includes("Use DI"));
+		expect(entryLine).toBeDefined();
+		expect(entryLine!).not.toContain("<!-- END:pi-brain -->");
+		expect(entryLine!).not.toContain("<!--");
+		// The text content should still be present, just stripped of comment delimiters
+		expect(entryLine!).toContain("Use DI");
+		expect(entryLine!).toContain("for decoupling");
+	});
 });
 
 // ---------------------------------------------------------------------------

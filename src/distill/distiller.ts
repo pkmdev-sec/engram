@@ -26,15 +26,33 @@ import { validateDistillerOutput } from "./validator.js";
  * or if all entries fail validation. Never throws on model output issues —
  * validation failures are silently dropped (logged to stderr for debugging).
  */
+const MAX_USER_MESSAGE_CHARS = 400_000; // ~100K tokens
+
+function truncateIfNeeded(userMessage: string, maxChars: number): string {
+	if (userMessage.length <= maxChars) return userMessage;
+
+	const keepChars = Math.floor(maxChars * 0.4); // 40% from start, 40% from end
+	const head = userMessage.slice(0, keepChars);
+	const tail = userMessage.slice(-keepChars);
+	const omitted = userMessage.length - keepChars * 2;
+
+	return `${head}\n\n[... ${omitted} characters omitted for length — middle of transcript truncated ...]\n\n${tail}`;
+}
+
 export async function distill(
 	transcript: SessionTranscript,
 	config: DistillationConfig,
 	existingEntries: readonly KnowledgeEntry[],
 	projectId: string,
 ): Promise<KnowledgeEntry[]> {
-	const { system, user } = buildDistillationPrompt(transcript);
+	if (config.trustLevel === "untrusted") {
+		return [];
+	}
 
-	const rawResponse = await callAnthropic(config.model, system, user);
+	const { system, user } = buildDistillationPrompt(transcript);
+	const truncatedUser = truncateIfNeeded(user, MAX_USER_MESSAGE_CHARS);
+
+	const rawResponse = await callAnthropic(config.model, system, truncatedUser);
 
 	const parsed = parseJsonResponse(rawResponse);
 	if (parsed === null) {

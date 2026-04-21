@@ -169,8 +169,8 @@ describe("verifyEntries", () => {
 
 	it("sets filesModified to true when git log returns non-empty output", () => {
 		fs.writeFileSync(path.join(tmpDir, "changed.ts"), "");
-		// Simulate git log reporting a recent commit on this file.
-		mockExecFileSync.mockReturnValue("abc1234 Update auth logic\n" as unknown as Buffer);
+		// Simulate git log --name-only reporting this file as modified.
+		mockExecFileSync.mockReturnValue("changed.ts\n" as unknown as Buffer);
 
 		const entry = makeEntry({ files: ["changed.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
@@ -214,10 +214,8 @@ describe("verifyEntries", () => {
 		fs.writeFileSync(path.join(tmpDir, "a.ts"), "");
 		fs.writeFileSync(path.join(tmpDir, "b.ts"), "");
 
-		// First call (a.ts): no commits. Second call (b.ts): has commits.
-		mockExecFileSync
-			.mockReturnValueOnce("" as unknown as Buffer)
-			.mockReturnValueOnce("deadbeef Fix bug\n" as unknown as Buffer);
+		// Single batched git call returns b.ts (only b.ts was modified).
+		mockExecFileSync.mockReturnValue("b.ts\n" as unknown as Buffer);
 
 		const entry = makeEntry({ files: ["a.ts", "b.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
@@ -234,7 +232,7 @@ describe("verifyEntries", () => {
 
 		expect(mockExecFileSync).toHaveBeenCalledWith(
 			"git",
-			expect.arrayContaining([`--since=${timestamp}`]),
+			["log", "--name-only", "--format=", `--since=${timestamp}`, "--", "."],
 			expect.objectContaining({ cwd: tmpDir }),
 		);
 	});
