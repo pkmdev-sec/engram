@@ -23,13 +23,10 @@ export class BrainStore {
 	private readonly brainPath: string;
 	private readonly indexPath: string;
 
-	constructor(projectId: string) {
-		this.storageDir = path.join(
-			os.homedir(),
-			".pi-brain",
-			"projects",
-			projectId,
-		);
+	constructor(projectId: string, basePath?: string) {
+		this.storageDir = basePath
+			? basePath
+			: path.join(os.homedir(), ".pi-brain", "projects", projectId);
 		this.brainPath = path.join(this.storageDir, BRAIN_FILE);
 		this.indexPath = path.join(this.storageDir, INDEX_FILE);
 

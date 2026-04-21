@@ -15,7 +15,8 @@ export type EntryCategory =
 	| "dependency"
 	| "active-work"
 	| "file-purpose"
-	| "failed-approach";
+	| "failed-approach"
+	| "user-preference";
 
 /** Categories that produce imperative-voice entries (counted toward imperative budget). */
 export const IMPERATIVE_CATEGORIES: ReadonlySet<EntryCategory> = new Set([
@@ -31,6 +32,7 @@ export const INFORMATIONAL_CATEGORIES: ReadonlySet<EntryCategory> = new Set([
 	"dependency",
 	"active-work",
 	"file-purpose",
+	"user-preference",
 ]);
 
 // -- Knowledge Entry --
@@ -68,6 +70,11 @@ export interface KnowledgeEntry {
 
 	readonly expiresAt: string | null;
 	readonly verified: VerificationState | null;
+
+	/** True if this entry lives in the global brain (cross-project). */
+	readonly crossProject?: boolean;
+	/** Project IDs that contributed to this global entry (for audit trail). */
+	readonly promotedFrom?: readonly string[];
 }
 
 // -- Brain Index --
@@ -147,12 +154,20 @@ export interface FeedbackConfig {
 	readonly minFeedbackScore: number;
 }
 
+export interface GlobalConfig {
+	readonly enabled: boolean;
+	readonly maxEntries: number;
+	/** Per-category importance multipliers for global entries. */
+	readonly categoryMultipliers: Readonly<Record<string, number>>;
+}
+
 export interface AgentConfig {
 	readonly distillation: DistillationConfig;
 	readonly compaction: CompactionConfig;
 	readonly injection: InjectionConfig;
 	readonly driftDetection: DriftConfig;
 	readonly feedback: FeedbackConfig;
+	readonly global: GlobalConfig;
 }
 
 export const DEFAULT_CONFIG: AgentConfig = {
@@ -176,6 +191,21 @@ export const DEFAULT_CONFIG: AgentConfig = {
 	},
 	driftDetection: {
 		overlapThreshold: 0.3,
+	},
+	global: {
+		enabled: false,
+		maxEntries: 35,
+		categoryMultipliers: {
+			"user-preference": 1.0,
+			"dependency": 0.85,
+			"failed-approach": 0.8,
+			"gotcha": 0.75,
+			"pattern": 0.6,
+			"constraint": 0.5,
+			"architecture": 0.4,
+			"active-work": 0.3,
+			"file-purpose": 0.3,
+		},
 	},
 	feedback: {
 		boostPerUse: 0.05,

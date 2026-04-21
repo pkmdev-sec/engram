@@ -1,4 +1,4 @@
-import type { RankedEntry, InjectionConfig } from "../types.js";
+import type { RankedEntry, InjectionConfig, GlobalConfig } from "../types.js";
 import { IMPERATIVE_CATEGORIES } from "../types.js";
 import { composeSessionStart, composeDriftContext } from "./templates.js";
 
@@ -20,15 +20,42 @@ export interface ComposeResult {
  * Keeping the two budgets separate ensures critical warnings (imperatives) can
  * never be crowded out by a large body of informational context, and vice versa.
  */
+/**
+ * Exclude global entries that overlap with project entries by >50% topic overlap.
+ * Project entries are always more authoritative than global entries.
+ */
+function dedupGlobalEntries(
+	ranked: readonly RankedEntry[],
+	projectTopics: ReadonlySet<string>,
+): RankedEntry[] {
+	return ranked.filter((r) => {
+		if (!r.entry.crossProject) return true;
+		if (r.entry.topics.length === 0) return true;
+		const overlap = r.entry.topics.filter((t) => projectTopics.has(t)).length;
+		const ratio = overlap / r.entry.topics.length;
+		return ratio <= 0.5;
+	});
+}
+
 export function compose(
 	rankedEntries: readonly RankedEntry[],
 	config: InjectionConfig,
 	mode: "session-start" | "drift",
+	globalConfig?: GlobalConfig,
 ): ComposeResult {
+	// Dedup: if global entries overlap with project entries on topics, drop the global ones
+	const projectTopics = new Set<string>();
+	for (const r of rankedEntries) {
+		if (!r.entry.crossProject) {
+			for (const t of r.entry.topics) projectTopics.add(t);
+		}
+	}
+	const deduped = dedupGlobalEntries(rankedEntries, projectTopics);
+
 	const imperativeEntries: RankedEntry[] = [];
 	const informationalEntries: RankedEntry[] = [];
 
-	for (const ranked of rankedEntries) {
+	for (const ranked of deduped) {
 		if (IMPERATIVE_CATEGORIES.has(ranked.entry.category)) {
 			imperativeEntries.push(ranked);
 		} else {

@@ -17,6 +17,11 @@ function buildEntryLine(ranked: RankedEntry): string {
 	const { entry, isStale } = ranked;
 	const parts: string[] = [];
 
+	// Global prefix: mark cross-project entries so the agent knows the source.
+	if (entry.crossProject) {
+		parts.push("(global)");
+	}
+
 	// Confidence prefix: flag low-confidence entries so the reader knows to
 	// treat them with extra skepticism before acting.
 	if (entry.confidence < 0.7) {
@@ -95,7 +100,8 @@ export function composeSessionStart(
 export function composeDriftContext(entries: readonly RankedEntry[]): string {
 	const lines = entries.map((ranked) => {
 		const { entry, isStale } = ranked;
-		const prefix = entry.confidence < 0.7 ? "(unverified) " : "";
+		const globalTag = entry.crossProject ? "(global) " : "";
+		const prefix = globalTag + (entry.confidence < 0.7 ? "(unverified) " : "");
 		const suffix = isStale ? " [stale]" : "";
 		return `- ${prefix}${entry.summary}${suffix}`;
 	});

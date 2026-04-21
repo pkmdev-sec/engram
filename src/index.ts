@@ -11,12 +11,13 @@
  *   clear     — Clear the brain for the current project
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 
 import type {
 	AgentConfig,
+	GlobalConfig,
 	InjectionState,
 	KnowledgeEntry,
 	SessionMessage,
@@ -117,6 +118,40 @@ function parseClaudeSession(filePath: string): SessionTranscript {
 	};
 }
 
+
+
+// -- Global Brain Helpers --
+
+const GLOBAL_BRAIN_PATH = path.join(homedir(), ".pi-brain", "global");
+
+function getGlobalStore(): BrainStore {
+	return new BrainStore("global", GLOBAL_BRAIN_PATH);
+}
+
+/** Merge global entries into project entries, applying category multipliers. */
+function mergeGlobalEntries(
+	projectEntries: KnowledgeEntry[],
+	config: AgentConfig,
+): KnowledgeEntry[] {
+	if (!config.global.enabled) return projectEntries;
+
+	const globalStore = getGlobalStore();
+	const globalEntries = globalStore.loadEntries();
+	if (globalEntries.length === 0) return projectEntries;
+
+	// Apply category multiplier to global entries
+	const multiplied = globalEntries.map((entry) => {
+		const multiplier = config.global.categoryMultipliers[entry.category] ?? 0.5;
+		return { ...entry, importance: entry.importance * multiplier, crossProject: true };
+	});
+
+	// Dynamic budget: global entries fill remaining space
+	const globalBudget = Math.max(10, config.global.maxEntries - projectEntries.length);
+	const trimmedGlobal = multiplied.slice(0, globalBudget);
+
+	return [...projectEntries, ...trimmedGlobal];
+}
+
 // -- Command Handlers --
 
 async function cmdDistill(args: string[]): Promise<void> {
@@ -185,7 +220,8 @@ async function cmdInject(args: string[]): Promise<void> {
 	}
 
 	if (event === "start") {
-		const verified = verifyEntries(entries, projectDir);
+		const merged = mergeGlobalEntries(entries, config);
+		const verified = verifyEntries(merged, projectDir);
 		const ranked = rankEntries(verified, [], [], config.injection);
 		const result = compose(ranked, config.injection, "session-start");
 
@@ -402,6 +438,166 @@ function cmdFeedback(args: string[]): void {
 	console.log(`Feedback updated: ${changes.size} entries (${boosted} boosted, ${changes.size - boosted} penalized)`);
 }
 
+
+function cmdPromote(args: string[]): void {
+	const entryId = args[0];
+	if (!entryId) {
+		console.error("Usage: pi-brain-agent promote <entry-id>");
+		process.exit(1);
+	}
+
+	const projectDir = process.cwd();
+	const projectId = projectIdFromPath(projectDir);
+	const store = new BrainStore(projectId);
+	const entries = store.loadEntries();
+	const entry = entries.find((e) => e.id === entryId);
+
+	if (!entry) {
+		console.error(`Entry ${entryId} not found in project brain.`);
+		process.exit(1);
+	}
+
+	const globalStore = getGlobalStore();
+	const globalEntry: KnowledgeEntry = {
+		...entry,
+		crossProject: true,
+		promotedFrom: [projectId],
+	};
+	globalStore.appendEntries([globalEntry]);
+
+	const allGlobal = globalStore.loadEntries();
+	globalStore.saveIndex(buildIndex(allGlobal, "global"));
+
+	console.log(`Promoted entry ${entryId} to global brain.`);
+	console.log(`  [${entry.category}] ${entry.summary}`);
+	console.log(`  Global brain now has ${allGlobal.length} entries.`);
+}
+
+function cmdDemote(args: string[]): void {
+	const entryId = args[0];
+	if (!entryId) {
+		console.error("Usage: pi-brain-agent demote <entry-id>");
+		process.exit(1);
+	}
+
+	const globalStore = getGlobalStore();
+	const entries = globalStore.loadEntries();
+	const filtered = entries.filter((e) => e.id !== entryId);
+
+	if (filtered.length === entries.length) {
+		console.error(`Entry ${entryId} not found in global brain.`);
+		process.exit(1);
+	}
+
+	globalStore.replaceEntries(filtered);
+	globalStore.saveIndex(buildIndex(filtered, "global"));
+	console.log(`Demoted entry ${entryId} from global brain. ${filtered.length} entries remain.`);
+}
+
+function cmdSetPreference(args: string[]): void {
+	const summary = args.join(" ");
+	if (!summary || summary.length < 10) {
+		console.error("Usage: pi-brain-agent set-preference <preference text>");
+		console.error("  Example: pi-brain-agent set-preference User prefers bundled PRs over many small ones");
+		process.exit(1);
+	}
+
+	
+	const id = `ke_${randomBytes(6).toString("hex")}`;
+	const entry: KnowledgeEntry = {
+		id,
+		timestamp: new Date().toISOString(),
+		projectId: "global",
+		category: "user-preference",
+		summary,
+		reasoning: "Explicitly set by user via set-preference command.",
+		confidence: 1.0,
+		files: [],
+		topics: [],
+		importance: 0.9,
+		feedbackScore: 0,
+		sourceSession: { tool: "claude", sessionId: "manual", conversationHash: "manual" },
+		expiresAt: null,
+		verified: null,
+		crossProject: true,
+	};
+
+	const globalStore = getGlobalStore();
+	globalStore.appendEntries([entry]);
+	const allGlobal = globalStore.loadEntries();
+	globalStore.saveIndex(buildIndex(allGlobal, "global"));
+	console.log(`Preference saved to global brain (id: ${id}).`);
+	console.log(`  ${summary}`);
+}
+
+function cmdRemovePreference(args: string[]): void {
+	const entryId = args[0];
+	if (!entryId) {
+		console.error("Usage: pi-brain-agent remove-preference <entry-id>");
+		process.exit(1);
+	}
+
+	const globalStore = getGlobalStore();
+	const entries = globalStore.loadEntries();
+	const entry = entries.find((e) => e.id === entryId);
+
+	if (!entry) {
+		console.error(`Entry ${entryId} not found in global brain.`);
+		process.exit(1);
+	}
+	if (entry.category !== "user-preference") {
+		console.error(`Entry ${entryId} is not a user-preference. Use 'demote' instead.`);
+		process.exit(1);
+	}
+
+	const filtered = entries.filter((e) => e.id !== entryId);
+	globalStore.replaceEntries(filtered);
+	globalStore.saveIndex(buildIndex(filtered, "global"));
+	console.log(`Removed preference ${entryId} from global brain.`);
+}
+
+function cmdGlobal(args: string[]): void {
+	const sub = args[0];
+	const globalStore = getGlobalStore();
+	const entries = globalStore.loadEntries();
+
+	switch (sub) {
+		case "show":
+			if (entries.length === 0) {
+				console.log("Global brain is empty.");
+				return;
+			}
+			console.log(`Global brain: ${entries.length} entries\n`);
+			for (const entry of entries) {
+				const age = Math.floor((Date.now() - Date.parse(entry.timestamp)) / 86_400_000);
+				const src = entry.promotedFrom ? ` [from: ${entry.promotedFrom.join(", ")}] ` : "";
+				console.log(`  [${entry.category}] (imp:${entry.importance.toFixed(2)} age:${age}d${src})`);
+				console.log(`    ${entry.summary}`);
+				if (entry.topics.length > 0) console.log(`    Topics: ${entry.topics.join(", ")}`);
+				console.log();
+			}
+			break;
+		case "stats":
+			console.log(`Global brain: ${entries.length} entries`);
+			if (entries.length > 0) {
+				const byCat: Record<string, number> = {};
+				for (const e of entries) byCat[e.category] = (byCat[e.category] ?? 0) + 1;
+				for (const [cat, count] of Object.entries(byCat).sort((a, b) => b[1] - a[1])) {
+					console.log(`  ${cat}: ${count}`);
+				}
+			}
+			break;
+		case "clear":
+			globalStore.replaceEntries([]);
+			globalStore.saveIndex(buildIndex([], "global"));
+			console.log(`Cleared ${entries.length} entries from global brain.`);
+			break;
+		default:
+			console.error("Usage: pi-brain-agent global [show|stats|clear]");
+			process.exit(1);
+	}
+}
+
 function cmdClear(): void {
 	const projectDir = process.cwd();
 	const projectId = projectIdFromPath(projectDir);
@@ -416,6 +612,7 @@ function cmdClear(): void {
 // Stored in a temp file per project so drift detection works across hook invocations.
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { tmpdir } from "node:os";
 
 function injectionStatePath(projectId: string): string {
@@ -488,6 +685,21 @@ async function main(): Promise<void> {
 		case "clear":
 			cmdClear();
 			break;
+		case "promote":
+			cmdPromote(args.slice(1));
+			break;
+		case "demote":
+			cmdDemote(args.slice(1));
+			break;
+		case "set-preference":
+			cmdSetPreference(args.slice(1));
+			break;
+		case "remove-preference":
+			cmdRemovePreference(args.slice(1));
+			break;
+		case "global":
+			cmdGlobal(args.slice(1));
+			break;
 		case "help":
 		case "--help":
 		case "-h":
@@ -495,6 +707,11 @@ async function main(): Promise<void> {
 
 Commands:
   distill <session.jsonl>      Distill a session into knowledge entries
+  promote <entry-id>           Promote a project entry to global brain
+  demote <entry-id>            Remove an entry from global brain
+  set-preference <text>        Add a cross-project user preference
+  remove-preference <id>       Remove a user preference
+  global show|stats|clear      Manage the global brain
   inject start [--dry-run]     Inject brain into CLAUDE.md (session start)
   inject message               Detect drift, inject via hook (stdin = user msg)
   compact                      Run compaction (prune + merge) on the brain
