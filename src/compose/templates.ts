@@ -3,6 +3,7 @@ import type { RankedEntry, EntryCategory } from "../types.js";
 // Maps each category to its section heading in the CLAUDE.md output.
 // Order here determines section order in the rendered output.
 const SECTION_ORDER: ReadonlyArray<{ categories: EntryCategory[]; heading: string }> = [
+	{ categories: ["user-preference"], heading: "User Preferences" },
 	{ categories: ["constraint"], heading: "Constraints" },
 	{ categories: ["architecture"], heading: "Architecture" },
 	{ categories: ["active-work"], heading: "Active Work" },

@@ -44,9 +44,23 @@ function projectIdFromPath(projectDir: string): string {
 	return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
 }
 
-/** Load config — for now, uses defaults. Future: read ~/.pi-brain/config.json */
+/** Load config from ~/.pi-brain/config.json, merged with defaults. */
 function loadConfig(): AgentConfig {
-	return DEFAULT_CONFIG;
+	const configPath = path.join(homedir(), ".pi-brain", "config.json");
+	if (!existsSync(configPath)) return DEFAULT_CONFIG;
+	try {
+		const userConfig = JSON.parse(readFileSync(configPath, "utf-8"));
+		return {
+			distillation: { ...DEFAULT_CONFIG.distillation, ...userConfig.distillation },
+			compaction: { ...DEFAULT_CONFIG.compaction, ...userConfig.compaction },
+			injection: { ...DEFAULT_CONFIG.injection, ...userConfig.injection },
+			driftDetection: { ...DEFAULT_CONFIG.driftDetection, ...userConfig.driftDetection },
+			feedback: { ...DEFAULT_CONFIG.feedback, ...userConfig.feedback },
+			global: { ...DEFAULT_CONFIG.global, ...userConfig.global },
+		};
+	} catch {
+		return DEFAULT_CONFIG;
+	}
 }
 
 /** Parse a Claude Code session JSONL into a SessionTranscript. */
