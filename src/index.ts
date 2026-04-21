@@ -36,6 +36,7 @@ import { detectDrift } from "./compose/drift-detector.js";
 import { injectSessionStart, injectDriftContext } from "./inject/claude-code.js";
 import { trackFeedback } from "./feedback/tracker.js";
 import { detectTechStack, techRelevance } from "./recall/techstack.js";
+import { scanForCrossProjectKnowledge, promoteQuarantinedEntries, loadPendingEntries } from "./store/auto-promoter.js";
 
 /** Compute a stable project ID from the working directory path. */
 function projectIdFromPath(projectDir: string): string {
@@ -193,6 +194,12 @@ async function cmdDistill(args: string[]): Promise<void> {
 	}
 
 	store.appendEntries(entries);
+
+	// Write project metadata for cross-project remote detection
+	const metaPath = path.join(store.getStorageDir(), "meta.json");
+	if (!existsSync(metaPath)) {
+		writeFileSync(metaPath, JSON.stringify({ projectDir, projectId }, null, 2), "utf-8");
+	}
 	const allEntries = store.loadEntries();
 	const index = buildIndex(allEntries, projectId);
 	store.saveIndex(index);
@@ -200,6 +207,18 @@ async function cmdDistill(args: string[]): Promise<void> {
 	console.log(`Stored ${entries.length} entries. Total: ${allEntries.length}`);
 	for (const entry of entries) {
 		console.log(`  [${entry.category}] ${entry.summary}`);
+	}
+
+	// Auto-promotion: scan for cross-project knowledge
+	if (config.global.enabled) {
+		const { quarantined } = scanForCrossProjectKnowledge(entries, projectId, projectDir);
+		if (quarantined > 0) {
+			console.log(`  Cross-project: ${quarantined} entries quarantined for global promotion`);
+		}
+		const promoted = promoteQuarantinedEntries(GLOBAL_BRAIN_PATH);
+		if (promoted > 0) {
+			console.log(`  Global brain: ${promoted} quarantined entries promoted (7-day quarantine complete)`);
+		}
 	}
 
 	if (allEntries.length >= config.compaction.triggerThreshold) {
@@ -569,6 +588,23 @@ function cmdGlobal(args: string[]): void {
 	const entries = globalStore.loadEntries();
 
 	switch (sub) {
+		case "pending": {
+			const pending = loadPendingEntries(GLOBAL_BRAIN_PATH);
+			if (pending.length === 0) {
+				console.log("No entries pending promotion.");
+				return;
+			}
+			console.log(`${pending.length} entries pending promotion:\n`);
+			for (const p of pending) {
+				const age = Math.floor((Date.now() - Date.parse(p.quarantinedAt)) / 86_400_000);
+				const remaining = Math.max(0, 7 - age);
+				console.log(`  [${p.entry.category}] (quarantined ${age}d ago, promotes in ${remaining}d)`);
+				console.log(`    ${p.entry.summary}`);
+				console.log(`    From projects: ${p.matchingProjects.join(", ")}`);
+				console.log();
+			}
+			break;
+		}
 		case "show":
 			if (entries.length === 0) {
 				console.log("Global brain is empty.");
@@ -718,7 +754,7 @@ Commands:
   demote <entry-id>            Remove an entry from global brain
   set-preference <text>        Add a cross-project user preference
   remove-preference <id>       Remove a user preference
-  global show|stats|clear      Manage the global brain
+  global show|stats|pending|clear  Manage the global brain
   inject start [--dry-run]     Inject brain into CLAUDE.md (session start)
   inject message               Detect drift, inject via hook (stdin = user msg)
   compact                      Run compaction (prune + merge) on the brain
