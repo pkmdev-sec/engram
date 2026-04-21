@@ -126,10 +126,13 @@ export interface RankedEntry {
 
 // -- Configuration --
 
+export type TrustLevel = "trusted" | "untrusted";
+
 export interface DistillationConfig {
 	readonly model: string;
 	readonly maxEntriesPerSession: number;
 	readonly minConfidence: number;
+	readonly trustLevel: TrustLevel;
 }
 
 export interface CompactionConfig {
@@ -179,6 +182,7 @@ export const DEFAULT_CONFIG: AgentConfig = {
 		model: "claude-opus-4-6",
 		maxEntriesPerSession: 10,
 		minConfidence: 0.7,
+		trustLevel: "trusted",
 	},
 	compaction: {
 		model: "claude-sonnet-4-6",
