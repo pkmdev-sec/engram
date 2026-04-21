@@ -35,6 +35,7 @@ import { compose } from "./compose/composer.js";
 import { detectDrift } from "./compose/drift-detector.js";
 import { injectSessionStart, injectDriftContext } from "./inject/claude-code.js";
 import { trackFeedback } from "./feedback/tracker.js";
+import { detectTechStack, techRelevance } from "./recall/techstack.js";
 
 /** Compute a stable project ID from the working directory path. */
 function projectIdFromPath(projectDir: string): string {
@@ -132,6 +133,7 @@ function getGlobalStore(): BrainStore {
 function mergeGlobalEntries(
 	projectEntries: KnowledgeEntry[],
 	config: AgentConfig,
+	projectDir: string,
 ): KnowledgeEntry[] {
 	if (!config.global.enabled) return projectEntries;
 
@@ -139,10 +141,15 @@ function mergeGlobalEntries(
 	const globalEntries = globalStore.loadEntries();
 	if (globalEntries.length === 0) return projectEntries;
 
-	// Apply category multiplier to global entries
+	// Detect project tech stack for relevance filtering
+	const projectStore = new BrainStore(projectIdFromPath(projectDir));
+	const stack = detectTechStack(projectDir, projectStore.getStorageDir());
+
+	// Apply category multiplier + tech relevance to global entries
 	const multiplied = globalEntries.map((entry) => {
-		const multiplier = config.global.categoryMultipliers[entry.category] ?? 0.5;
-		return { ...entry, importance: entry.importance * multiplier, crossProject: true };
+		const catMultiplier = config.global.categoryMultipliers[entry.category] ?? 0.5;
+		const techMultiplier = techRelevance(entry.topics, stack);
+		return { ...entry, importance: entry.importance * catMultiplier * techMultiplier, crossProject: true };
 	});
 
 	// Dynamic budget: global entries fill remaining space
@@ -220,7 +227,7 @@ async function cmdInject(args: string[]): Promise<void> {
 	}
 
 	if (event === "start") {
-		const merged = mergeGlobalEntries(entries, config);
+		const merged = mergeGlobalEntries(entries, config, projectDir);
 		const verified = verifyEntries(merged, projectDir);
 		const ranked = rankEntries(verified, [], [], config.injection);
 		const result = compose(ranked, config.injection, "session-start");
