@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="engram — knowledge intelligence for AI agents" width="100%"/>
+</p>
+
 # engram
 
 Knowledge intelligence layer for AI coding agents. Extracts knowledge from completed sessions, stores it in a per-project brain, and injects the right context into future sessions — making every session smarter than the last.
