@@ -44,7 +44,7 @@ export function scanForCrossProjectKnowledge(
 ): { quarantined: number } {
 	if (newEntries.length === 0) return { quarantined: 0 };
 
-	const projectsDir = join(homedir(), ".pi-brain", "projects");
+	const projectsDir = join(homedir(), ".engram", "projects");
 	if (!existsSync(projectsDir)) return { quarantined: 0 };
 
 	// Load all OTHER project brains
@@ -52,7 +52,7 @@ export function scanForCrossProjectKnowledge(
 	if (otherBrains.length === 0) return { quarantined: 0 };
 
 	const currentRemote = getGitRemote(currentProjectDir);
-	const globalDir = join(homedir(), ".pi-brain", "global");
+	const globalDir = join(homedir(), ".engram", "global");
 	let quarantined = 0;
 
 	for (const entry of newEntries) {

@@ -196,7 +196,7 @@ describe("validateDistillerOutput", () => {
 	});
 
 	it("rejects near-duplicate of existing entry", () => {
-		// Identical summary text → Jaccard similarity = 1.0, well above the 0.8 threshold.
+		// Identical summary text → Jaccard similarity = 1.0, well above the 0.65 threshold.
 		const sharedSummary =
 			"The storage layer separates read and write models completely.";
 
@@ -217,7 +217,7 @@ describe("validateDistillerOutput", () => {
 
 	it("caps at 10 entries", () => {
 		// Each summary uses a fully unique vocabulary so that no two entries
-		// trigger the Jaccard duplicate check (threshold > 0.8). The topics
+		// trigger the Jaccard duplicate check (threshold > 0.65). The topics
 		// and files are also unique per entry to satisfy the retrieval-anchor
 		// requirement.
 		const uniqueSummaries = [

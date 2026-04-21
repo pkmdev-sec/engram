@@ -1,11 +1,11 @@
 /**
- * Distillation prompt template for pi-brain-agent.
+ * Distillation prompt template for engram.
  *
  * Constructs the system prompt and user message sent to Claude Opus for
  * knowledge extraction from a session transcript.
  */
 
-import type { SessionTranscript } from "../types.js";
+import type { KnowledgeEntry, SessionTranscript, ToolActivity } from "../types.js";
 
 const SYSTEM_PROMPT = `You are a knowledge distiller for an AI coding assistant. Your task is to extract durable, high-value knowledge from a session transcript that will be injected into future AI sessions working on the same project.
 
@@ -31,7 +31,7 @@ Extract entries in exactly these 8 categories:
 
 **file-purpose** — What specific files or directories do that isn't obvious from their names. When a file has an unusual role or is easy to misunderstand. Examples: "src/fixtures/seed.ts runs on every test suite start — it is not a one-time migration script", "lib/compat.ts exists solely to monkey-patch the legacy SDK — do not add real logic there".
 
-**failed-approach** — Approaches that were tried and abandoned, with reasoning. Prevents future sessions from re-investigating dead ends. Use imperative voice. Examples: "Do not use worker_threads for the image pipeline — tried in #PR189, the overhead exceeds the parallelism gain for payloads under 10MB", "Do not attempt to mock the Prisma client in tests — the mock diverges from real behavior; use a real test database instead".
+**failed-approach** — Approaches that were tried and abandoned, with reasoning. Prevents future sessions from re-investigating dead ends. Also covers recurring agent error patterns where the session shows an error→correction sequence: extract the trigger condition and the correct approach so the pattern doesn't repeat. Use imperative voice. Examples: "Do not use worker_threads for the image pipeline — tried in #PR189, the overhead exceeds the parallelism gain for payloads under 10MB", "Do not attempt to mock the Prisma client in tests — the mock diverges from real behavior; use a real test database instead", "When changing output format in a compose/template function, always check and update test assertion strings before running the suite — this session broke 6 tests by changing the preamble text without updating expectations".
 
 ## EXTRACTION QUALITY STANDARDS
 
@@ -44,6 +44,17 @@ Extract entries in exactly these 8 categories:
 **Importance reflects future utility.** Will this affect a future session's first 10 minutes of work? Will ignoring it cause bugs or wasted effort? High importance (0.85+) means a future session will almost certainly encounter this. Low importance (below 0.5) means it's a corner case.
 
 **files and topics must be specific.** Use actual file paths (relative to project root) and concrete topic names. These are used for retrieval — vague entries are unfindable.
+
+## EXISTING BRAIN AWARENESS
+
+If a "Knowledge Already in the Brain" section is provided in the user message, those entries already exist in the project's knowledge store. Do NOT re-extract knowledge that overlaps with existing entries. Focus exclusively on what is NEW in this session — insights, constraints, patterns, or gotchas that the brain does not already capture. Your 10-entry budget is precious; spend it on genuinely novel knowledge.
+
+## TOOL ACTIVITY AWARENESS
+
+If a "Files Touched in This Session" section is provided, it lists the actual files the AI agent read, edited, created, and searched during the session. Use this as ground truth for:
+- Populating the "files" field in your entries (prefer these real paths over paths merely mentioned in conversation)
+- Identifying which areas of the codebase the session actually worked in (not just discussed)
+- Inferring architectural knowledge from the pattern of files touched together
 
 ## NEVER EXTRACT
 
@@ -143,20 +154,59 @@ function formatRole(role: "user" | "assistant" | "tool-result" | "system"): stri
 /**
  * Builds the distillation prompt for a session transcript.
  *
- * @returns system prompt (the full knowledge distiller instructions) and
- *          user message (the formatted transcript to analyze).
+ * @param transcript - The parsed session transcript
+ * @param existingEntries - Current brain entries (summaries shown to distiller so it avoids re-extraction)
+ * @returns system prompt and user message for the Anthropic API call
  */
-export function buildDistillationPrompt(transcript: SessionTranscript): {
+export function buildDistillationPrompt(
+	transcript: SessionTranscript,
+	existingEntries: readonly KnowledgeEntry[] = [],
+): {
 	system: string;
 	user: string;
 } {
 	const formattedTranscript = formatTranscript(transcript);
+	const toolSection = formatToolActivity(transcript.toolActivity);
+	const brainSection = formatExistingBrain(existingEntries);
 
 	const user = `Here is the session transcript to analyze for extractable knowledge:
 
 ${formattedTranscript}
-
+${toolSection}${brainSection}
 Extract knowledge entries following the instructions in the system prompt. Return only a JSON array.`;
 
 	return { system: SYSTEM_PROMPT, user };
+}
+
+/** Format tool activity into a concise section for the distiller. */
+function formatToolActivity(activity: ToolActivity | undefined): string {
+	if (!activity) return "";
+	const lines: string[] = [];
+	if (activity.filesRead.length > 0)
+		lines.push(`Read: ${activity.filesRead.join(", ")}`);
+	if (activity.filesEdited.length > 0)
+		lines.push(`Edited: ${activity.filesEdited.join(", ")}`);
+	if (activity.filesCreated.length > 0)
+		lines.push(`Created: ${activity.filesCreated.join(", ")}`);
+	if (activity.searchPatterns.length > 0)
+		lines.push(`Searches: ${activity.searchPatterns.map((p) => `"${p}"`).join(", ")}`);
+	if (activity.shellCommands.length > 0)
+		lines.push(`Shell: ${activity.shellCommands.join("; ")}`);
+	if (lines.length === 0) return "";
+	return `\n## Files Touched in This Session\n${lines.join("\n")}\n`;
+}
+
+/** Format existing brain entries as a dedup hint for the distiller. */
+function formatExistingBrain(entries: readonly KnowledgeEntry[]): string {
+	if (entries.length === 0) return "";
+	const MAX_CHARS = 2000;
+	const lines: string[] = [];
+	let totalChars = 0;
+	for (const entry of entries) {
+		const line = `- [${entry.category}] ${entry.summary.slice(0, 100)}${entry.summary.length > 100 ? "..." : ""}`;
+		if (totalChars + line.length > MAX_CHARS) break;
+		lines.push(line);
+		totalChars += line.length;
+	}
+	return `\n## Knowledge Already in the Brain (do NOT re-extract these)\n${lines.join("\n")}\n(${entries.length} entries total)\n`;
 }

@@ -15,7 +15,7 @@ const SECTION_ORDER: ReadonlyArray<{ categories: EntryCategory[]; heading: strin
 ];
 
 // Strip HTML comment delimiters from brain content before injecting into CLAUDE.md.
-// If an entry's text contains <!-- END:pi-brain --> it would corrupt the managed
+// If an entry's text contains <!-- END:engram --> it would corrupt the managed
 // section markers on the next inject cycle.
 function sanitizeForClaudeMd(text: string): string {
 	return text.replace(/<!--/g, "").replace(/-->/g, "");
@@ -36,11 +36,9 @@ function buildEntryLine(ranked: RankedEntry): string {
 		parts.push("(unverified)");
 	}
 
-	// Combine summary and reasoning on one line per spec.
-	// Sanitize both fields to prevent embedded HTML comment markers from
-	// breaking the pi-brain managed section on the next inject.
-	const line = `${sanitizeForClaudeMd(entry.summary)}. ${sanitizeForClaudeMd(entry.reasoning)}`;
-	parts.push(line);
+	// Summary only — reasoning is provenance metadata, not injection content.
+	// Keeping it out preserves signal density and gives the agent room to think.
+	parts.push(sanitizeForClaudeMd(entry.summary));
 
 	// Stale suffix: entry references files that have been modified since
 	// extraction — the fact may still be correct but needs re-verification.
@@ -90,16 +88,15 @@ export function composeSessionStart(
 	const body = sectionBlocks.join("\n\n");
 
 	return [
-		`<!-- BEGIN:pi-brain (auto-managed -- do not edit inside markers) -->`,
+		`<!-- BEGIN:engram (auto-managed -- do not edit inside markers) -->`,
 		`## Project Intelligence -- Last synced: ${syncTimestamp}`,
 		``,
-		`> Auto-extracted from prior coding sessions. These are hints, not facts.`,
-		`> When an entry is critical to your next action, verify it against current`,
-		`> code before proceeding. Entries marked [stale] reference files modified`,
-		`> since extraction.`,
+		`> Context from prior sessions — not instructions. You decide what's relevant.`,
+		`> Use what helps. Ignore what doesn't apply. Verify before acting on anything`,
+		`> marked [stale]. When in doubt, read the code — it's the source of truth.`,
 		``,
 		body,
-		`<!-- END:pi-brain -->`,
+		`<!-- END:engram -->`,
 	].join("\n");
 }
 
@@ -117,9 +114,7 @@ export function composeDriftContext(entries: readonly RankedEntry[]): string {
 	});
 
 	return [
-		`[Project Intelligence -- topic shift detected]`,
-		`Relevant context for the files/topics in your current message:`,
+		`[Prior session context — may be relevant to your current topic]`,
 		...lines,
-		`Verify these against current code before acting on them.`,
 	].join("\n");
 }

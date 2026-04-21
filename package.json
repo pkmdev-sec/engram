@@ -1,12 +1,12 @@
 {
-	"name": "pi-brain-agent",
+	"name": "engram",
 	"version": "0.1.0",
-	"description": "Agent intelligence layer — distills knowledge from AI coding sessions and injects it into future Claude Code and Pi sessions",
+	"description": "Knowledge intelligence layer for AI coding agents \u2014 extracts, stores, ranks, and injects session knowledge to make every future session smarter",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"pi-brain-agent": "./dist/index.js"
+		"engram": "./dist/index.js"
 	},
 	"scripts": {
 		"clean": "rm -rf dist",

@@ -41,10 +41,10 @@ function makeRanked(
 describe("composeSessionStart", () => {
 	const TIMESTAMP = "2024-01-15T10:00:00.000Z";
 
-	it("output contains BEGIN and END pi-brain markers", () => {
+	it("output contains BEGIN and END engram markers", () => {
 		const result = composeSessionStart([], TIMESTAMP);
-		expect(result).toContain("<!-- BEGIN:pi-brain");
-		expect(result).toContain("<!-- END:pi-brain -->");
+		expect(result).toContain("<!-- BEGIN:engram");
+		expect(result).toContain("<!-- END:engram -->");
 	});
 
 	it("contains Project Intelligence header with sync timestamp", () => {
@@ -52,9 +52,10 @@ describe("composeSessionStart", () => {
 		expect(result).toContain(`## Project Intelligence -- Last synced: ${TIMESTAMP}`);
 	});
 
-	it("contains the Auto-extracted disclaimer", () => {
+	it("contains the context-not-instructions disclaimer", () => {
 		const result = composeSessionStart([], TIMESTAMP);
-		expect(result).toContain("Auto-extracted from prior coding sessions");
+		expect(result).toContain("Context from prior sessions");
+		expect(result).toContain("You decide what");
 	});
 
 	it("only sections with entries are rendered — empty sections omitted", () => {
@@ -120,7 +121,7 @@ describe("composeSessionStart", () => {
 		expect(entryLine!.startsWith("- ")).toBe(true);
 	});
 
-	it("entry line combines summary and reasoning: 'summary. reasoning'", () => {
+	it("entry line contains summary only — reasoning not injected", () => {
 		const entries = [
 			makeRanked({
 				category: "architecture",
@@ -129,7 +130,8 @@ describe("composeSessionStart", () => {
 			}),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
-		expect(result).toContain("Use dependency injection. Decouples construction from use");
+		expect(result).toContain("Use dependency injection");
+		expect(result).not.toContain("Decouples construction from use");
 	});
 
 	it("global entries (crossProject: true) get '(global)' prefix", () => {
@@ -254,8 +256,8 @@ describe("composeSessionStart", () => {
 
 	it("empty entries list produces output with markers but no section blocks", () => {
 		const result = composeSessionStart([], TIMESTAMP);
-		expect(result).toContain("<!-- BEGIN:pi-brain");
-		expect(result).toContain("<!-- END:pi-brain -->");
+		expect(result).toContain("<!-- BEGIN:engram");
+		expect(result).toContain("<!-- END:engram -->");
 		expect(result).not.toContain("###");
 	});
 
@@ -285,15 +287,15 @@ describe("composeSessionStart", () => {
 		const entries = [
 			makeRanked({
 				category: "architecture",
-				summary: "Use DI <!-- END:pi-brain --> for decoupling",
-				reasoning: "Injection <!-- END:pi-brain --> is cleaner",
+				summary: "Use DI <!-- END:engram --> for decoupling",
+				reasoning: "Injection <!-- END:engram --> is cleaner",
 			}),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
 		// The entry line itself must not carry the marker (the outer section marker is fine)
 		const entryLine = result.split("\n").find((l) => l.includes("Use DI"));
 		expect(entryLine).toBeDefined();
-		expect(entryLine!).not.toContain("<!-- END:pi-brain -->");
+		expect(entryLine!).not.toContain("<!-- END:engram -->");
 		expect(entryLine!).not.toContain("<!--");
 		// The text content should still be present, just stripped of comment delimiters
 		expect(entryLine!).toContain("Use DI");
@@ -306,19 +308,9 @@ describe("composeSessionStart", () => {
 // ---------------------------------------------------------------------------
 
 describe("composeDriftContext", () => {
-	it("output starts with '[Project Intelligence -- topic shift detected]'", () => {
+	it("output starts with prior session context header", () => {
 		const result = composeDriftContext([]);
-		expect(result.startsWith("[Project Intelligence -- topic shift detected]")).toBe(true);
-	});
-
-	it("contains 'Relevant context' line", () => {
-		const result = composeDriftContext([]);
-		expect(result).toContain("Relevant context");
-	});
-
-	it("contains 'Verify these' footer", () => {
-		const result = composeDriftContext([]);
-		expect(result).toContain("Verify these");
+		expect(result.startsWith("[Prior session context")).toBe(true);
 	});
 
 	it("each entry is a '- ' prefixed line", () => {
@@ -453,13 +445,12 @@ describe("composeDriftContext", () => {
 		expect(entryLine!).toBe("- Threshold entry");
 	});
 
-	it("empty entries list produces only header, Relevant context line, and Verify footer", () => {
+	it("empty entries list produces only header line", () => {
 		const result = composeDriftContext([]);
 		const lines = result.split("\n");
 		const bulletLines = lines.filter((l) => l.startsWith("- "));
 		expect(bulletLines).toHaveLength(0);
-		expect(lines[0]).toBe("[Project Intelligence -- topic shift detected]");
-		expect(lines[lines.length - 1]).toBe("Verify these against current code before acting on them.");
+		expect(lines[0]).toContain("[Prior session context");
 	});
 
 	it("multiple entries render in the order given (no section reordering)", () => {

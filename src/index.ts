@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pi-brain-agent CLI entry point.
+ * engram CLI entry point.
  *
  * Commands:
  *   distill   — Distill a session into knowledge entries
@@ -30,7 +30,7 @@ import { BrainStore } from "./store/brain-store.js";
 import { buildIndex, queryIndex } from "./store/indexer.js";
 import { compact } from "./store/compactor.js";
 import { verifyEntries } from "./recall/verifier.js";
-import { rankEntries } from "./recall/ranker.js";
+import { rankEntries, getRecentActivity, deriveTopicsFromFiles } from "./recall/ranker.js";
 import { compose } from "./compose/composer.js";
 import { detectDrift } from "./compose/drift-detector.js";
 import { injectSessionStart, injectDriftContext } from "./inject/claude-code.js";
@@ -44,9 +44,9 @@ function projectIdFromPath(projectDir: string): string {
 	return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
 }
 
-/** Load config from ~/.pi-brain/config.json, merged with defaults. */
+/** Load config from ~/.engram/config.json, merged with defaults. */
 function loadConfig(): AgentConfig {
-	const configPath = path.join(homedir(), ".pi-brain", "config.json");
+	const configPath = path.join(homedir(), ".engram", "config.json");
 	if (!existsSync(configPath)) return DEFAULT_CONFIG;
 	try {
 		const userConfig = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -69,6 +69,12 @@ function parseClaudeSession(filePath: string): SessionTranscript {
 	const messages: SessionMessage[] = [];
 	let sessionId: string | undefined;
 	let projectPath: string | undefined;
+
+	const filesRead = new Set<string>();
+	const filesEdited = new Set<string>();
+	const filesCreated = new Set<string>();
+	const searchPatterns = new Set<string>();
+	const shellCommands: string[] = [];
 
 	for (const line of content.split("\n")) {
 		const trimmed = line.trim();
@@ -101,13 +107,17 @@ function parseClaudeSession(filePath: string): SessionTranscript {
 			const textParts: string[] = [];
 			if (Array.isArray(contentArr)) {
 				for (const block of contentArr) {
-					if (
-						typeof block === "object" &&
-						block !== null &&
-						(block as Record<string, unknown>).type === "text"
-					) {
-						const text = (block as Record<string, unknown>).text;
+					if (typeof block !== "object" || block === null) continue;
+					const b = block as Record<string, unknown>;
+					if (b.type === "text") {
+						const text = b.text;
 						if (typeof text === "string") textParts.push(text);
+					} else if (b.type === "tool_use") {
+						extractToolActivity(
+							b, projectPath ?? "",
+							filesRead, filesEdited, filesCreated,
+							searchPatterns, shellCommands,
+						);
 					}
 				}
 			} else if (typeof contentArr === "string") {
@@ -131,14 +141,79 @@ function parseClaudeSession(filePath: string): SessionTranscript {
 		source: "claude",
 		messages,
 		projectPath,
+		toolActivity: {
+			filesRead: [...filesRead],
+			filesEdited: [...filesEdited],
+			filesCreated: [...filesCreated],
+			searchPatterns: [...searchPatterns],
+			shellCommands,
+		},
 	};
+}
+
+/** Extract file paths and patterns from a tool_use content block. */
+function extractToolActivity(
+	block: Record<string, unknown>,
+	projectDir: string,
+	filesRead: Set<string>,
+	filesEdited: Set<string>,
+	filesCreated: Set<string>,
+	searchPatterns: Set<string>,
+	shellCommands: string[],
+): void {
+	const name = block.name as string | undefined;
+	const input = block.input as Record<string, unknown> | undefined;
+	if (!name || !input) return;
+
+	const strip = (abs: string): string => {
+		if (projectDir && abs.startsWith(projectDir)) {
+			const rel = abs.slice(projectDir.length).replace(/^\//, "");
+			return rel || abs;
+		}
+		return abs;
+	};
+
+	switch (name) {
+		case "Read": {
+			const fp = input.file_path;
+			if (typeof fp === "string") filesRead.add(strip(fp));
+			break;
+		}
+		case "Edit": {
+			const fp = input.file_path;
+			if (typeof fp === "string") filesEdited.add(strip(fp));
+			break;
+		}
+		case "Write": {
+			const fp = input.file_path;
+			if (typeof fp === "string") filesCreated.add(strip(fp));
+			break;
+		}
+		case "Glob": {
+			const pat = input.pattern;
+			if (typeof pat === "string") searchPatterns.add(pat);
+			break;
+		}
+		case "Grep": {
+			const pat = input.pattern;
+			if (typeof pat === "string") searchPatterns.add(pat);
+			break;
+		}
+		case "Bash": {
+			const desc = input.description;
+			if (typeof desc === "string" && desc.length > 0 && shellCommands.length < 50) {
+				shellCommands.push(desc);
+			}
+			break;
+		}
+	}
 }
 
 
 
 // -- Global Brain Helpers --
 
-const GLOBAL_BRAIN_PATH = path.join(homedir(), ".pi-brain", "global");
+const GLOBAL_BRAIN_PATH = path.join(homedir(), ".engram", "global");
 
 function getGlobalStore(): BrainStore {
 	return new BrainStore("global", GLOBAL_BRAIN_PATH);
@@ -182,7 +257,7 @@ function mergeGlobalEntries(
 async function cmdDistill(args: string[]): Promise<void> {
 	const sessionPath = args.find((a) => !a.startsWith("--"));
 	if (!sessionPath) {
-		console.error("Usage: pi-brain-agent distill <session-file.jsonl>");
+		console.error("Usage: engram distill <session-file.jsonl>");
 		process.exit(1);
 	}
 
@@ -239,9 +314,25 @@ async function cmdDistill(args: string[]): Promise<void> {
 	}
 
 	if (allEntries.length >= config.compaction.triggerThreshold) {
-		console.log(
-			`Brain has ${allEntries.length} entries (threshold: ${config.compaction.triggerThreshold}). Consider running: pi-brain-agent compact`,
-		);
+		// Only auto-compact when enough entries have feedback data to guide merge decisions.
+		// Without feedback, compaction is the LLM guessing which knowledge matters.
+		const testedEntries = allEntries.filter((e) => e.feedbackScore !== 0);
+		const testedRatio = testedEntries.length / allEntries.length;
+		if (testedRatio >= 0.3) {
+			console.log(`Auto-compacting brain (${allEntries.length} entries, ${(testedRatio * 100).toFixed(0)}% have feedback data)...`);
+			try {
+				const result = await compact(allEntries, projectDir, config.compaction, config.injection);
+				store.replaceEntries(result.entries);
+				store.saveIndex(buildIndex(result.entries, projectId));
+				console.log(`Compaction: ${result.before} → ${result.after} (pruned ${result.pruned}, merged ${result.merged})`);
+			} catch (err) {
+				console.error(`Auto-compaction failed: ${err}`);
+			}
+		} else {
+			console.log(
+				`Brain has ${allEntries.length} entries but only ${(testedRatio * 100).toFixed(0)}% have feedback — skipping auto-compaction until more entries are tested.`,
+			);
+		}
 	}
 }
 
@@ -263,13 +354,11 @@ async function cmdInject(args: string[]): Promise<void> {
 	}
 
 	if (event === "start") {
-		// Invalidate previous session's state for this project
-		const statePath = injectionStatePath(projectId);
-		try { unlinkSync(statePath); } catch { /* may not exist */ }
-
 		const merged = mergeGlobalEntries(entries, config, projectDir);
 		const verified = verifyEntries(merged, projectDir);
-		const ranked = rankEntries(verified, [], [], config.injection);
+		const recentFiles = getRecentActivity(projectDir, 7);
+		const recentTopics = deriveTopicsFromFiles(recentFiles);
+		const ranked = rankEntries(verified, recentFiles, recentTopics, config.injection);
 		const result = compose(ranked, config.injection, "session-start");
 
 		if (dryRun) {
@@ -277,6 +366,11 @@ async function cmdInject(args: string[]): Promise<void> {
 			console.log(`\n--- ${result.includedIds.length} entries would be injected ---`);
 			return;
 		}
+
+		// Invalidate previous session's state AFTER dry-run guard —
+		// dry-run must not destroy state that drift detection depends on.
+		const statePath = injectionStatePath(projectId);
+		try { unlinkSync(statePath); } catch { /* may not exist */ }
 
 		injectSessionStart(projectDir, result.text);
 
@@ -430,7 +524,7 @@ async function cmdCompact(): Promise<void> {
 function cmdFeedback(args: string[]): void {
 	const sessionPath = args.find((a) => !a.startsWith("--"));
 	if (!sessionPath) {
-		console.error("Usage: pi-brain-agent feedback <session-file.jsonl>");
+		console.error("Usage: engram feedback <session-file.jsonl>");
 		process.exit(1);
 	}
 
@@ -490,7 +584,7 @@ function cmdFeedback(args: string[]): void {
 function cmdPromote(args: string[]): void {
 	const entryId = args[0];
 	if (!entryId) {
-		console.error("Usage: pi-brain-agent promote <entry-id>");
+		console.error("Usage: engram promote <entry-id>");
 		process.exit(1);
 	}
 
@@ -524,7 +618,7 @@ function cmdPromote(args: string[]): void {
 function cmdDemote(args: string[]): void {
 	const entryId = args[0];
 	if (!entryId) {
-		console.error("Usage: pi-brain-agent demote <entry-id>");
+		console.error("Usage: engram demote <entry-id>");
 		process.exit(1);
 	}
 
@@ -555,8 +649,8 @@ const PREFERENCE_POISONING_PATTERNS: readonly RegExp[] = [
 function cmdSetPreference(args: string[]): void {
 	const summary = args.join(" ");
 	if (!summary || summary.length < 10) {
-		console.error("Usage: pi-brain-agent set-preference <preference text>");
-		console.error("  Example: pi-brain-agent set-preference User prefers bundled PRs over many small ones");
+		console.error("Usage: engram set-preference <preference text>");
+		console.error("  Example: engram set-preference User prefers bundled PRs over many small ones");
 		process.exit(1);
 	}
 
@@ -597,7 +691,7 @@ function cmdSetPreference(args: string[]): void {
 function cmdRemovePreference(args: string[]): void {
 	const entryId = args[0];
 	if (!entryId) {
-		console.error("Usage: pi-brain-agent remove-preference <entry-id>");
+		console.error("Usage: engram remove-preference <entry-id>");
 		process.exit(1);
 	}
 
@@ -674,7 +768,7 @@ function cmdGlobal(args: string[]): void {
 			console.log(`Cleared ${entries.length} entries from global brain.`);
 			break;
 		default:
-			console.error("Usage: pi-brain-agent global [show|stats|clear]");
+			console.error("Usage: engram global [show|stats|clear]");
 			process.exit(1);
 	}
 }
@@ -697,7 +791,7 @@ import { homedir } from "node:os";
 import { tmpdir } from "node:os";
 
 function injectionStatePath(projectId: string): string {
-	const dir = path.join(tmpdir(), "pi-brain-agent");
+	const dir = path.join(tmpdir(), "engram");
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	return path.join(dir, `state-${projectId}.json`);
 }
@@ -784,7 +878,7 @@ async function main(): Promise<void> {
 		case "help":
 		case "--help":
 		case "-h":
-			console.log(`pi-brain-agent — Agent intelligence layer
+			console.log(`engram — Agent intelligence layer
 
 Commands:
   distill <session.jsonl>      Distill a session into knowledge entries
@@ -807,7 +901,7 @@ Environment:
 `);
 			break;
 		default:
-			console.error(`Unknown command: ${command ?? "(none)"}. Run: pi-brain-agent help`);
+			console.error(`Unknown command: ${command ?? "(none)"}. Run: engram help`);
 			process.exit(1);
 	}
 }

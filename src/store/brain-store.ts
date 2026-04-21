@@ -42,8 +42,8 @@ const INDEX_FILE = "index.json";
  * Persistent storage layer for a single project's knowledge base.
  *
  * Layout on disk:
- *   ~/.pi-brain/projects/<projectId>/brain.jsonl  — one KnowledgeEntry per line
- *   ~/.pi-brain/projects/<projectId>/index.json   — BrainIndex snapshot
+ *   ~/.engram/projects/<projectId>/brain.jsonl  — one KnowledgeEntry per line
+ *   ~/.engram/projects/<projectId>/index.json   — BrainIndex snapshot
  *
  * All I/O is synchronous. The brain is small (≤100 entries after compaction) and
  * synchronous reads/writes simplify integration with CLAUDE.md hook entry-points
@@ -57,7 +57,7 @@ export class BrainStore {
 	constructor(projectId: string, basePath?: string) {
 		this.storageDir = basePath
 			? basePath
-			: path.join(os.homedir(), ".pi-brain", "projects", projectId);
+			: path.join(os.homedir(), ".engram", "projects", projectId);
 		this.brainPath = path.join(this.storageDir, BRAIN_FILE);
 		this.indexPath = path.join(this.storageDir, INDEX_FILE);
 

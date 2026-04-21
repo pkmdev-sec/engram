@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import type { InjectionConfig, KnowledgeEntry, RankedEntry } from "../types.js";
 
 /**
@@ -98,4 +99,50 @@ function countIntersection(
 		if (querySet.has(item)) count++;
 	}
 	return count;
+}
+
+/**
+ * Returns relative file paths modified in the last `days` days via git log.
+ * Falls back to an empty array if git is unavailable or the project isn't a repo.
+ */
+export function getRecentActivity(projectDir: string, days: number): string[] {
+	try {
+		const output = execFileSync(
+			"git",
+			["log", `--since=${days} days ago`, "--name-only", "--format=", "--", "."],
+			{ cwd: projectDir, encoding: "utf8" },
+		);
+		const seen = new Set<string>();
+		for (const line of output.split("\n")) {
+			const trimmed = line.trim();
+			if (trimmed && !trimmed.startsWith(".")) seen.add(trimmed);
+		}
+		return [...seen];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Derives topic keywords from a list of file paths by extracting
+ * directory names and file stems. `src/auth/token.ts` → ["auth", "token"].
+ * Filters out generic names that carry no topical signal.
+ */
+export function deriveTopicsFromFiles(files: readonly string[]): string[] {
+	const NOISE = new Set([
+		"src", "lib", "dist", "build", "test", "tests", "spec",
+		"index", "main", "utils", "util", "helpers", "helper",
+		"types", "config", "node_modules", "scripts",
+	]);
+	const topics = new Set<string>();
+	for (const filePath of files) {
+		const parts = filePath.split("/");
+		for (const part of parts) {
+			const stem = part.replace(/\.[^.]+$/, "").toLowerCase();
+			if (stem.length > 2 && !NOISE.has(stem)) {
+				topics.add(stem);
+			}
+		}
+	}
+	return [...topics];
 }

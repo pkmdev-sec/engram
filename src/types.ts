@@ -1,5 +1,5 @@
 /**
- * Core types for pi-brain-agent.
+ * Core types for engram.
  *
  * Every module imports from here. Changes to these types cascade everywhere,
  * so they are frozen early and validated rigorously.
@@ -185,9 +185,9 @@ export const DEFAULT_CONFIG: AgentConfig = {
 		trustLevel: "trusted",
 	},
 	compaction: {
-		model: "claude-sonnet-4-6",
+		model: "claude-opus-4-6",
 		maxEntriesPerProject: 100,
-		triggerThreshold: 100,
+		triggerThreshold: 50,
 		maxDaysBetweenCompactions: 60,
 	},
 	injection: {
@@ -232,9 +232,19 @@ export interface SessionMessage {
 	readonly model?: string;
 }
 
+/** Structured metadata extracted from tool_use blocks in a session. */
+export interface ToolActivity {
+	readonly filesRead: readonly string[];
+	readonly filesEdited: readonly string[];
+	readonly filesCreated: readonly string[];
+	readonly searchPatterns: readonly string[];
+	readonly shellCommands: readonly string[];
+}
+
 export interface SessionTranscript {
 	readonly id: string;
 	readonly source: string;
 	readonly messages: readonly SessionMessage[];
 	readonly projectPath?: string;
+	readonly toolActivity?: ToolActivity;
 }

@@ -43,14 +43,18 @@ export async function compact(
 	const afterPrune = deterministicPrune(entries, projectDir, injectionConfig);
 	const pruned = before - afterPrune.length;
 
-	// Phase 2: LLM merge (only if there are enough entries to warrant it)
+	// Phase 2: LLM merge — only for entries without positive feedback.
+	// Entries with positive feedback have proven their value through actual usage.
+	// They are preserved exactly as-is and never sent to the LLM for rewriting.
+	const proven = afterPrune.filter((e) => e.feedbackScore > 0);
+	const unproven = afterPrune.filter((e) => e.feedbackScore <= 0);
 	let final: KnowledgeEntry[];
 	let merged = 0;
 
-	if (afterPrune.length > 15) {
-		const mergeResult = await llmMerge(afterPrune, projectDir, compactionConfig);
-		final = mergeResult.entries;
-		merged = afterPrune.length - final.length;
+	if (unproven.length > 15) {
+		const mergeResult = await llmMerge(unproven, projectDir, compactionConfig);
+		final = [...proven, ...mergeResult.entries];
+		merged = unproven.length - mergeResult.entries.length;
 	} else {
 		final = afterPrune;
 	}

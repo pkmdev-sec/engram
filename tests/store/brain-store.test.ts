@@ -63,7 +63,7 @@ describe("BrainStore", () => {
 	beforeEach(() => {
 		projectId = uniqueProjectId();
 		store = new BrainStore(projectId);
-		storageDir = path.join(os.homedir(), ".pi-brain", "projects", projectId);
+		storageDir = path.join(os.homedir(), ".engram", "projects", projectId);
 	});
 
 	afterEach(() => {

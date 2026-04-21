@@ -49,14 +49,14 @@ export async function distill(
 		return [];
 	}
 
-	const { system, user } = buildDistillationPrompt(transcript);
+	const { system, user } = buildDistillationPrompt(transcript, existingEntries);
 	const truncatedUser = truncateIfNeeded(user, MAX_USER_MESSAGE_CHARS);
 
 	const rawResponse = await callAnthropic(config.model, system, truncatedUser);
 
 	const parsed = parseJsonResponse(rawResponse);
 	if (parsed === null) {
-		console.error("[pi-brain-agent] Distiller returned non-JSON response, skipping");
+		console.error("[engram] Distiller returned non-JSON response, skipping");
 		return [];
 	}
 
@@ -64,7 +64,7 @@ export async function distill(
 
 	if (rejected.length > 0) {
 		console.error(
-			`[pi-brain-agent] Distiller: ${rejected.length} entries rejected:`,
+			`[engram] Distiller: ${rejected.length} entries rejected:`,
 			rejected.map((r) => r.reason),
 		);
 	}

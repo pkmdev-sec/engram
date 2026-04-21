@@ -4,8 +4,8 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { injectDriftContext, injectSessionStart } from "../../src/inject/claude-code.js";
 
-const BEGIN_MARKER = "<!-- BEGIN:pi-brain";
-const END_MARKER = "<!-- END:pi-brain -->";
+const BEGIN_MARKER = "<!-- BEGIN:engram";
+const END_MARKER = "<!-- END:engram -->";
 
 function makeMarkerBlock(content: string): string {
 	return `${BEGIN_MARKER} -->\n${content}\n${END_MARKER}`;
@@ -15,7 +15,7 @@ describe("injectSessionStart", () => {
 	let tmpDir: string;
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-brain-test-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "engram-test-"));
 	});
 
 	afterEach(() => {

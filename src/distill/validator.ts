@@ -57,7 +57,7 @@ const MAX_ENTRIES = 10;
 const MIN_SUMMARY_LENGTH = 10;
 
 /** Overlap ratio above which an entry is considered a near-duplicate. */
-const DUPLICATE_OVERLAP_THRESHOLD = 0.8;
+const DUPLICATE_OVERLAP_THRESHOLD = 0.65;
 
 export interface ValidationResult {
 	valid: RawDistillerEntry[];

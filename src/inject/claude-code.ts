@@ -1,16 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const BEGIN_MARKER = "<!-- BEGIN:pi-brain";
-const END_MARKER = "<!-- END:pi-brain -->";
+const BEGIN_MARKER = "<!-- BEGIN:engram";
+const END_MARKER = "<!-- END:engram -->";
 
 /**
- * Writes pi-brain content into CLAUDE.md for the given project directory.
+ * Writes engram content into CLAUDE.md for the given project directory.
  *
  * Three cases:
  *  1. CLAUDE.md does not exist — create it with the brain content as the
  *     entire file contents.
- *  2. CLAUDE.md exists and contains the pi-brain markers — replace everything
+ *  2. CLAUDE.md exists and contains the engram markers — replace everything
  *     between (and including) the markers with the new brain content.
  *  3. CLAUDE.md exists but has no markers — append the brain content at the
  *     end of the file, preceded by a blank line separator.
@@ -34,7 +34,7 @@ export function injectSessionStart(projectDir: string, brainContent: string): vo
 	if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
 		// Replace from the beginning of the begin-marker to the end of the
 		// end-marker (inclusive). This handles any variation in the text that
-		// follows BEGIN:pi-brain on the same line (e.g. the auto-managed note).
+		// follows BEGIN:engram on the same line (e.g. the auto-managed note).
 		const endOfEndMarker = endIdx + END_MARKER.length;
 		const updated =
 			existing.slice(0, beginIdx) +

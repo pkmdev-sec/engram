@@ -71,11 +71,11 @@ function daysAgo(days: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Setup: create isolated ~/.pi-brain mock using TMPDIR override via homedir mock
+// Setup: create isolated ~/.engram mock using TMPDIR override via homedir mock
 // ---------------------------------------------------------------------------
 // 
 // scanForCrossProjectKnowledge internally calls homedir() to resolve
-// ~/.pi-brain/projects and ~/.pi-brain/global. We intercept by mocking
+// ~/.engram/projects and ~/.engram/global. We intercept by mocking
 // node:os in the auto-promoter module. Since vi.mock is hoisted, we set
 // the actual return value per-test via the shared tmpDir variable.
 
@@ -99,7 +99,7 @@ const mockHomedir = vi.mocked(homedir);
 
 beforeEach(() => {
 	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "auto-promoter-test-"));
-	piBrainDir = path.join(tmpDir, ".pi-brain");
+	piBrainDir = path.join(tmpDir, ".engram");
 	projectsDir = path.join(piBrainDir, "projects");
 	globalDir = path.join(piBrainDir, "global");
 	fs.mkdirSync(projectsDir, { recursive: true });
