@@ -1,0 +1,34 @@
+{
+	"name": "pi-brain-agent",
+	"version": "0.1.0",
+	"description": "Agent intelligence layer — distills knowledge from AI coding sessions and injects it into future Claude Code and Pi sessions",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": {
+		"pi-brain-agent": "./dist/index.js"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "tsc",
+		"check": "biome check .",
+		"check:fix": "biome check --write .",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "npm run clean && npm run build"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.39.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/node": "^22.10.0",
+		"typescript": "^5.7.3",
+		"vitest": "^3.0.0"
+	},
+	"engines": {
+		"node": ">=20.6.0"
+	},
+	"license": "MIT"
+}
