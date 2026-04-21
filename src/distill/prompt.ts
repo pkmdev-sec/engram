@@ -83,7 +83,8 @@ Return a JSON array (and nothing else — no markdown fences, no preamble, no tr
     "importance": <float 0.0–1.0>,
     "files": ["<relative/path/to/file.ts>", ...],
     "topics": ["<specific-topic>", ...],
-    "expiresAt": "<ISO 8601 date string if this entry has a natural expiry, e.g. an active-work entry for a temporary branch> | null"
+    "expiresAt": "<ISO 8601 date string if this entry has a natural expiry, e.g. an active-work entry for a temporary branch> | null",
+    "mayGeneralize": "<true if this knowledge would apply to OTHER projects (library gotchas, tool expertise). false if project-specific.>"
   }
 ]
 
@@ -94,6 +95,7 @@ Constraints on the output:
 - files must contain real paths mentioned or inferred from the transcript. Use [] if no specific files are relevant.
 - topics must contain 1–5 specific topic strings. Never use generic topics like "code" or "project".
 - expiresAt must be an ISO 8601 date string (e.g. "2025-06-01T00:00:00Z") or null.
+- mayGeneralize should be true for library/tool gotchas and broadly applicable patterns. false for project-specific architecture and active work.
 - Do not include any fields not in this schema.
 - Do not wrap the output in markdown code fences.
 - Output only the JSON array — nothing before it, nothing after it.`;

@@ -75,6 +75,8 @@ export interface KnowledgeEntry {
 	readonly crossProject?: boolean;
 	/** Project IDs that contributed to this global entry (for audit trail). */
 	readonly promotedFrom?: readonly string[];
+	/** Distiller hint: this entry might apply to other projects. */
+	readonly mayGeneralize?: boolean;
 }
 
 // -- Brain Index --
@@ -109,6 +111,8 @@ export interface RawDistillerEntry {
 	topics: string[];
 	importance: number;
 	expiresAt: string | null;
+	/** Distiller hint: this entry might generalize across projects. */
+	mayGeneralize?: boolean;
 }
 
 // -- Ranked Entry (entry with computed score for injection) --

@@ -335,6 +335,7 @@ function cmdShow(): void {
 		console.log(`    Why: ${entry.reasoning}`);
 		if (entry.files.length > 0) console.log(`    Files: ${entry.files.join(", ")}`);
 		if (entry.topics.length > 0) console.log(`    Topics: ${entry.topics.join(", ")}`);
+		if (entry.mayGeneralize) console.log(`    [may generalize across projects]`);
 		console.log();
 	}
 }

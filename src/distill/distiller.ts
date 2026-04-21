@@ -131,5 +131,6 @@ function toKnowledgeEntry(
 		},
 		expiresAt: raw.expiresAt,
 		verified: null,
+		mayGeneralize: raw.mayGeneralize ?? false,
 	};
 }
