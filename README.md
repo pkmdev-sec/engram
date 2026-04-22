@@ -20,20 +20,22 @@ New session  ◀── INJECT (CLAUDE.md) ◀── COMPOSE (budget) ◀── R
 
 ```mermaid
 graph TD
-    subgraph Write["Session ends → Extract knowledge"]
+    subgraph Write[" "]
         direction LR
-        A[Session JSONL] -->|parse| B[Transcript]
+        Z([Session ends]) --> A[Session JSONL]
+        A -->|parse| B[Transcript]
         B -->|Opus| C[Raw Entries]
         C -->|validate| D[KnowledgeEntry]
     end
 
     D -->|append| E[(brain.jsonl)]
 
-    subgraph Read["New session → Inject context"]
+    subgraph Read[" "]
         direction LR
         F[Verify] -->|rank| G[Scored]
         G -->|budget| H[Markdown]
         H -->|write| I[CLAUDE.md]
+        I --> Y([New session])
     end
 
     E -->|load| F
