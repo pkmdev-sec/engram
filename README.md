@@ -8,18 +8,16 @@ Knowledge intelligence layer for AI coding agents. Extracts knowledge from compl
 
 ## How it works
 
-```
-  ┌─ Session ends ──┐                  ┌── New session ─┐
-  │                 │                  │                │
-  │  Session JSONL  │                  │     Verify     │
-  │       │ parse   │                  │      │ rank    │
-  │   Transcript    │                  │     Scored     │
-  │       │ Opus    │     append       │      │ budget  │
-  │   Raw Entries   │ ──▶ brain.jsonl  │    Markdown    │
-  │       │ validate│      ──▶        │      │ write   │
-  │  KnowledgeEntry │      load       │    CLAUDE.md   │
-  │                 │                  │                │
-  └─────────────────┘                  └────────────────┘
+```mermaid
+graph LR
+    A[Session JSONL] -->|parse| B[Transcript + Tool Activity]
+    B -->|Opus 4.6| C[Raw Entries]
+    C -->|validate + dedup| D[KnowledgeEntry objects]
+    D -->|append| E[(brain.jsonl)]
+    E -->|load| F[Verify against disk]
+    F -->|rank by relevance| G[Scored entries]
+    G -->|budget cap| H[Composed markdown]
+    H -->|write| I[CLAUDE.md]
 ```
 
 ### What each stage does
