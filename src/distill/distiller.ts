@@ -31,7 +31,9 @@ const MAX_USER_MESSAGE_CHARS = 400_000; // ~100K tokens
 function truncateIfNeeded(userMessage: string, maxChars: number): string {
 	if (userMessage.length <= maxChars) return userMessage;
 
-	const keepChars = Math.floor(maxChars * 0.4); // 40% from start, 40% from end
+	// Reserve space for the omission notice (~100 chars), split remainder 50/50
+	const noticeOverhead = 120;
+	const keepChars = Math.floor((maxChars - noticeOverhead) / 2);
 	const head = userMessage.slice(0, keepChars);
 	const tail = userMessage.slice(-keepChars);
 	const omitted = userMessage.length - keepChars * 2;

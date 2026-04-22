@@ -110,7 +110,7 @@ export function composeDriftContext(entries: readonly RankedEntry[]): string {
 		const globalTag = entry.crossProject ? "(global) " : "";
 		const prefix = globalTag + (entry.confidence < 0.7 ? "(unverified) " : "");
 		const suffix = isStale ? " [stale]" : "";
-		return `- ${prefix}${entry.summary}${suffix}`;
+		return `- ${prefix}${sanitizeForClaudeMd(entry.summary)}${suffix}`;
 	});
 
 	return [

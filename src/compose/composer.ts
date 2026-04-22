@@ -1,4 +1,4 @@
-import type { RankedEntry, InjectionConfig, GlobalConfig } from "../types.js";
+import type { RankedEntry, InjectionConfig } from "../types.js";
 import { IMPERATIVE_CATEGORIES } from "../types.js";
 import { composeSessionStart, composeDriftContext } from "./templates.js";
 
@@ -41,7 +41,6 @@ export function compose(
 	rankedEntries: readonly RankedEntry[],
 	config: InjectionConfig,
 	mode: "session-start" | "drift",
-	globalConfig?: GlobalConfig,
 ): ComposeResult {
 	// Dedup: if global entries overlap with project entries on topics, drop the global ones
 	const projectTopics = new Set<string>();

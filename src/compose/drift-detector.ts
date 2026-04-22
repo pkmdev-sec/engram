@@ -11,6 +11,9 @@ const STOP_WORDS = new Set([
 	"your", "their", "there", "here", "each", "such", "only", "over",
 	"after", "about", "before", "these", "those", "both", "very",
 	"make", "made", "being", "using", "used", "need", "needs",
+	"not", "has", "had", "can", "any", "its", "you", "all", "one",
+	"new", "now", "way", "may", "got", "get", "let", "put", "set",
+	"try", "run", "use", "yet", "how", "why", "who", "our", "own", "too",
 ]);
 
 /**
@@ -64,7 +67,7 @@ function extractTopics(message: string): string[] {
 	const words = message
 		.toLowerCase()
 		.split(/[^a-z]+/)
-		.filter((w) => w.length > 3 && /^[a-z]+$/.test(w) && !STOP_WORDS.has(w));
+		.filter((w) => w.length > 2 && /^[a-z]+$/.test(w) && !STOP_WORDS.has(w));
 
 	// Deduplicate while preserving first-occurrence order.
 	const seen = new Set<string>();

@@ -13,6 +13,7 @@ import { join } from "node:path";
 
 import type { CompactionConfig, InjectionConfig, KnowledgeEntry } from "../types.js";
 import { callAnthropic } from "../api/anthropic.js";
+import { isValidEntry } from "./brain-store.js";
 
 interface CompactionResult {
 	readonly before: number;
@@ -89,8 +90,9 @@ function deterministicPrune(
 
 	return entries.filter((entry) => {
 		// Rule 1: delete expired entries
-		if (entry.expiresAt && Date.parse(entry.expiresAt) < now) {
-			return false;
+		if (entry.expiresAt) {
+			const expiry = Date.parse(entry.expiresAt);
+			if (!Number.isNaN(expiry) && expiry < now) return false;
 		}
 
 		// Rule 2: delete file-purpose and pattern entries where ALL files are gone
@@ -103,7 +105,8 @@ function deterministicPrune(
 		}
 
 		// Rule 3: delete entries with effective importance < 0.3
-		const ageInDays = (now - Date.parse(entry.timestamp)) / 86_400_000;
+		const parsedTs = Date.parse(entry.timestamp);
+		const ageInDays = Number.isNaN(parsedTs) ? 0 : (now - parsedTs) / 86_400_000;
 		const decayFactor =
 			ageInDays > 90
 				? config.decayDays90
@@ -193,14 +196,18 @@ ${entriesJson}`;
 
 			if (original) {
 				// Apply any changes from the LLM while preserving provenance
-				result.push({
+				const merged = {
 					...original,
 					summary: typeof record.summary === "string" ? record.summary : original.summary,
 					reasoning:
 						typeof record.reasoning === "string" ? record.reasoning : original.reasoning,
 					importance:
 						typeof record.importance === "number" ? record.importance : original.importance,
-				});
+				};
+				// Re-validate: LLM-rewritten summary/reasoning must pass poisoning checks
+				if (isValidEntry(merged)) {
+					result.push(merged);
+				}
 			}
 		}
 

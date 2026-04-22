@@ -4,7 +4,14 @@ let client: Anthropic | null = null;
 
 function getClient(): Anthropic {
 	if (!client) {
-		client = new Anthropic(); // reads ANTHROPIC_API_KEY from env automatically
+		if (!process.env.ANTHROPIC_API_KEY) {
+			throw new Error(
+				"ANTHROPIC_API_KEY is not set. Required for distillation and compaction.",
+			);
+		}
+		client = new Anthropic({
+			timeout: 120_000, // 2 minutes — hooks have limited lifetime
+		});
 	}
 	return client;
 }

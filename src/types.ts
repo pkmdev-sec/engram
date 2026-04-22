@@ -185,7 +185,7 @@ export const DEFAULT_CONFIG: AgentConfig = {
 		trustLevel: "trusted",
 	},
 	compaction: {
-		model: "claude-opus-4-6",
+		model: "claude-sonnet-4-6",
 		maxEntriesPerProject: 100,
 		triggerThreshold: 50,
 		maxDaysBetweenCompactions: 60,

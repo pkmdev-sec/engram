@@ -14,7 +14,7 @@ const POISONING_PATTERNS: readonly RegExp[] = [
     /\bdisable check\b/i,
 ];
 
-function isValidEntry(entry: unknown): entry is KnowledgeEntry {
+export function isValidEntry(entry: unknown): entry is KnowledgeEntry {
     if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
     const record = entry as Record<string, unknown>;
 
@@ -120,15 +120,18 @@ export class BrainStore {
 	 * Overwrite brain.jsonl with the given entries.
 	 *
 	 * Used by compaction, which replaces the full store with a deduplicated,
-	 * pruned set of entries. Writes atomically by building the full payload in
-	 * memory first then issuing a single writeFileSync call.
+	 * pruned set of entries. Writes to a temp file first, then renames into
+	 * place — rename is atomic on POSIX filesystems, so a crash mid-write
+	 * leaves the original file intact rather than truncated/empty.
 	 */
 	replaceEntries(entries: readonly KnowledgeEntry[]): void {
 		const payload =
 			entries.length > 0
 				? entries.map((e) => JSON.stringify(e)).join("\n") + "\n"
 				: "";
-		fs.writeFileSync(this.brainPath, payload, "utf8");
+		const tmpPath = this.brainPath + ".tmp";
+		fs.writeFileSync(tmpPath, payload, "utf8");
+		fs.renameSync(tmpPath, this.brainPath);
 	}
 
 	/**

@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 import type { KnowledgeEntry } from "../types.js";
+import { isValidEntry } from "./brain-store.js";
 
 const PENDING_FILE = "pending.jsonl";
 const PROMOTION_LOG = "promotion-log.jsonl";
@@ -217,7 +218,10 @@ function loadOtherProjectBrains(projectsDir: string, currentProjectId: string): 
 					const trimmed = line.trim();
 					if (!trimmed) continue;
 					try {
-						entries.push(JSON.parse(trimmed) as KnowledgeEntry);
+						const parsed = JSON.parse(trimmed);
+						if (isValidEntry(parsed)) {
+							entries.push(parsed);
+						}
 					} catch {
 						// Skip
 					}

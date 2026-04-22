@@ -56,7 +56,14 @@ function loadConfig(): AgentConfig {
 			injection: { ...DEFAULT_CONFIG.injection, ...userConfig.injection },
 			driftDetection: { ...DEFAULT_CONFIG.driftDetection, ...userConfig.driftDetection },
 			feedback: { ...DEFAULT_CONFIG.feedback, ...userConfig.feedback },
-			global: { ...DEFAULT_CONFIG.global, ...userConfig.global },
+			global: {
+				...DEFAULT_CONFIG.global,
+				...userConfig.global,
+				categoryMultipliers: {
+					...DEFAULT_CONFIG.global.categoryMultipliers,
+					...(userConfig.global?.categoryMultipliers ?? {}),
+				},
+			},
 		};
 	} catch {
 		return DEFAULT_CONFIG;
@@ -87,13 +94,33 @@ function parseClaudeSession(filePath: string): SessionTranscript {
 			continue;
 		}
 
-		if (entry.cwd && !projectPath) projectPath = entry.cwd as string;
+		if (entry.cwd && !projectPath) {
+			const cwd = entry.cwd as string;
+			// Reject suspicious cwd values — must be a deep absolute path, not root or traversal
+			if (cwd.startsWith("/") && cwd.split("/").length > 2 && !cwd.includes("..")) {
+				projectPath = cwd;
+			}
+		}
 		if (entry.sessionId && !sessionId) sessionId = entry.sessionId as string;
 
 		const type = entry.type as string | undefined;
 		if (type === "user") {
 			const msg = entry.message as Record<string, unknown> | undefined;
-			const messageContent = typeof msg?.content === "string" ? msg.content : "";
+			const rawContent = msg?.content;
+			let messageContent = "";
+			if (typeof rawContent === "string") {
+				messageContent = rawContent;
+			} else if (Array.isArray(rawContent)) {
+				// Extract text from array content blocks (tool_result, text, etc.)
+				const parts: string[] = [];
+				for (const block of rawContent) {
+					if (typeof block !== "object" || block === null) continue;
+					const b = block as Record<string, unknown>;
+					if (b.type === "text" && typeof b.text === "string") parts.push(b.text);
+					if (b.type === "tool_result" && typeof b.content === "string") parts.push(b.content);
+				}
+				messageContent = parts.join("\n");
+			}
 			if (messageContent) {
 				messages.push({
 					role: "user",

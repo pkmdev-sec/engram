@@ -93,6 +93,9 @@ function buildVerificationState(
 	let anyModified = false;
 
 	for (const filePath of entry.files) {
+		// Skip paths that attempt directory traversal outside the project
+		if (filePath.includes("..")) continue;
+
 		const absolute = path.join(projectDir, filePath);
 
 		if (fs.existsSync(absolute)) {

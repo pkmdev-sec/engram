@@ -24,7 +24,8 @@ export function rankEntries(
 	const ranked: RankedEntry[] = [];
 
 	for (const entry of entries) {
-		const ageInDays = (now - Date.parse(entry.timestamp)) / 86_400_000;
+		const parsed = Date.parse(entry.timestamp);
+		const ageInDays = Number.isNaN(parsed) ? 0 : (now - parsed) / 86_400_000;
 		const decayFactor = decayForAge(ageInDays, config);
 		const effectiveImportance = entry.importance * decayFactor;
 
