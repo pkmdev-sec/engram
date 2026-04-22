@@ -80,7 +80,7 @@ function daysAgo(days: number): string {
 // the actual return value per-test via the shared tmpDir variable.
 
 let tmpDir: string;
-let piBrainDir: string;
+let engramDir: string;
 let projectsDir: string;
 let globalDir: string;
 
@@ -99,9 +99,9 @@ const mockHomedir = vi.mocked(homedir);
 
 beforeEach(() => {
 	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "auto-promoter-test-"));
-	piBrainDir = path.join(tmpDir, ".engram");
-	projectsDir = path.join(piBrainDir, "projects");
-	globalDir = path.join(piBrainDir, "global");
+	engramDir = path.join(tmpDir, ".engram");
+	projectsDir = path.join(engramDir, "projects");
+	globalDir = path.join(engramDir, "global");
 	fs.mkdirSync(projectsDir, { recursive: true });
 	fs.mkdirSync(globalDir, { recursive: true });
 
