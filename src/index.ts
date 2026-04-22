@@ -433,6 +433,20 @@ function cmdFeedback(args: string[]): void {
 
 	store.updateFeedbackBatch(changes);
 
+	// Propagate feedback to global brain for cross-project entries.
+	// Without this, global entries never learn which projects find them useful.
+	const globalChanges = new Map<string, number>();
+	for (const [entryId, newScore] of changes) {
+		const entry = injectedEntries.find((e) => e.id === entryId);
+		if (entry?.crossProject) {
+			globalChanges.set(entryId, newScore);
+		}
+	}
+	if (globalChanges.size > 0) {
+		const globalStore = getGlobalStore();
+		globalStore.updateFeedbackBatch(globalChanges);
+	}
+
 	const boosted = [...changes.values()].filter((_, i) => {
 		const entryId = [...changes.keys()][i];
 		const entry = injectedEntries.find((e) => e.id === entryId);
