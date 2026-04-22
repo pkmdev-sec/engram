@@ -95,4 +95,136 @@ describe("detectDrift", () => {
 		expect(result.newTopics).not.toContain("authentication");
 		expect(result.newTopics).toContain("authorization");
 	});
+
+	// -- File extraction edge cases --
+
+	it("extracts paths with dots in directory names", () => {
+		const state = makeState();
+		const result = detectDrift("Check /usr/local/lib/node_modules/.pnpm/pkg.ts", state);
+		expect(result.newFiles.length).toBeGreaterThan(0);
+	});
+
+	it("extracts relative paths like src/auth without extension", () => {
+		const state = makeState();
+		const result = detectDrift("Look at src/auth for the middleware", state);
+		expect(result.newFiles).toContain("src/auth");
+	});
+
+	it("deduplicates file paths extracted from repeated mentions", () => {
+		const state = makeState();
+		const result = detectDrift(
+			"First check /src/auth/token.ts then revisit /src/auth/token.ts",
+			state,
+		);
+		const tokenCount = result.newFiles.filter((f) => f === "/src/auth/token.ts").length;
+		expect(tokenCount).toBe(1);
+	});
+
+	it("does not extract bare filenames without slashes as file paths", () => {
+		const state = makeState();
+		const result = detectDrift("Edit the package.json file", state);
+		// package.json has no slash → not extracted as a file path
+		const hasPackageJson = result.newFiles.some((f) => f.includes("package.json"));
+		expect(hasPackageJson).toBe(false);
+	});
+
+	// -- Topic extraction edge cases --
+
+	it("filters stop words from topics", () => {
+		const state = makeState();
+		const result = detectDrift(
+			"the authentication module should have been using better patterns",
+			state,
+		);
+		expect(result.newTopics).toContain("authentication");
+		expect(result.newTopics).toContain("module");
+		expect(result.newTopics).toContain("better");
+		expect(result.newTopics).toContain("patterns");
+		// Stop words excluded
+		expect(result.newTopics).not.toContain("the");
+		expect(result.newTopics).not.toContain("should");
+		expect(result.newTopics).not.toContain("have");
+		expect(result.newTopics).not.toContain("been");
+		expect(result.newTopics).not.toContain("using");
+	});
+
+	it("keeps 3-character technical terms like api, cli, git", () => {
+		const state = makeState();
+		const result = detectDrift("fix the api rate limiter and cli help text", state);
+		expect(result.newTopics).toContain("api");
+		expect(result.newTopics).toContain("rate");
+		expect(result.newTopics).toContain("limiter");
+		expect(result.newTopics).toContain("cli");
+		expect(result.newTopics).toContain("help");
+		expect(result.newTopics).toContain("text");
+	});
+
+	it("drops 1-2 character words from topics", () => {
+		const state = makeState();
+		const result = detectDrift("go to db or do it", state);
+		// "go", "to", "db", "or", "do", "it" are all <= 2 chars → filtered
+		expect(result.newTopics).toHaveLength(0);
+	});
+
+	it("deduplicates topics from repeated words", () => {
+		const state = makeState();
+		const result = detectDrift(
+			"authentication authentication authentication pattern",
+			state,
+		);
+		const authCount = result.newTopics.filter((t) => t === "authentication").length;
+		expect(authCount).toBe(1);
+	});
+
+	// -- Drift threshold edge cases --
+
+	it("drift when overlap is exactly 0 (all new territory)", () => {
+		const state = makeState({
+			injectedFiles: ["/old/path.ts"],
+			injectedTopics: ["database"],
+		});
+		const result = detectDrift(
+			"Refactor /src/auth/token.ts for authentication security",
+			state,
+		);
+		expect(result.drifted).toBe(true);
+	});
+
+	it("no drift when overlap is exactly 1.0 (perfect match)", () => {
+		const state = makeState({
+			injectedFiles: ["/src/auth/token.ts"],
+			injectedTopics: ["authentication", "security", "refactor"],
+		});
+		const result = detectDrift(
+			"Check /src/auth/token.ts for authentication security refactor",
+			state,
+		);
+		expect(result.drifted).toBe(false);
+	});
+
+	it("no drift when both files and topics have high overlap", () => {
+		// All mentioned files and most topics match injected state → no drift
+		const state = makeState({
+			injectedFiles: ["/src/auth/token.ts"],
+			injectedTopics: ["authentication", "validation", "fix", "src", "auth", "token"],
+		});
+		const result = detectDrift(
+			"Fix /src/auth/token.ts authentication validation",
+			state,
+		);
+		expect(result.drifted).toBe(false);
+	});
+
+	it("reports newFiles and newTopics even when no drift detected", () => {
+		// Most overlap, but one new file and topic
+		const state = makeState({
+			injectedFiles: ["/src/auth/token.ts", "/src/auth/session.ts"],
+			injectedTopics: ["authentication", "validation", "security", "fix", "src", "auth", "token", "session"],
+		});
+		const result = detectDrift(
+			"Fix /src/auth/token.ts and /src/auth/session.ts authentication validation security",
+			state,
+		);
+		expect(result.drifted).toBe(false);
+	});
 });

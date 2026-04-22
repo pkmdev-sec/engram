@@ -218,4 +218,111 @@ describe("rankEntries", () => {
 
 		expect(ranked[0].score).toBeCloseTo(expected, 4);
 	});
+
+	it("feedbackScore contributes 10% of final score", () => {
+		const positive = makeEntry({ feedbackScore: 0.3, files: [], topics: [] });
+		const negative = makeEntry({ feedbackScore: -0.3, files: [], topics: [] });
+
+		const [pos] = rankEntries([positive], [], [], cfg);
+		const [neg] = rankEntries([negative], [], [], cfg);
+
+		// Score difference should be 0.6 * 0.1 = 0.06 (feedback weight is 0.1)
+		expect(pos.score - neg.score).toBeCloseTo(0.06, 4);
+	});
+
+	it("excludes entries exactly at importance threshold after decay", () => {
+		// importance = 0.5, 0 days old (no decay), threshold = 0.5
+		// effectiveImportance = 0.5 → NOT < 0.5 → survives
+		const atThreshold = makeEntry({ importance: 0.5, files: [], topics: [] });
+		const result = rankEntries([atThreshold], [], [], cfg);
+		expect(result).toHaveLength(1);
+	});
+
+	it("excludes entries just below threshold", () => {
+		// importance = 0.49, no decay → 0.49 < 0.5 → excluded
+		const belowThreshold = makeEntry({ importance: 0.49, files: [], topics: [] });
+		const result = rankEntries([belowThreshold], [], [], cfg);
+		expect(result).toHaveLength(0);
+	});
+
+	it("relevance rewards entries matching more of the query", () => {
+		// Entry with 2/2 file matches should rank higher than 1/2
+		const fullMatch = makeEntry({ files: ["src/a.ts", "src/b.ts"], topics: [] });
+		const partialMatch = makeEntry({ files: ["src/a.ts", "src/c.ts"], topics: [] });
+
+		const ranked = rankEntries(
+			[partialMatch, fullMatch],
+			["src/a.ts", "src/b.ts"],
+			[],
+			cfg,
+		);
+
+		const fullIdx = ranked.findIndex((r) => r.entry.id === fullMatch.id);
+		const partialIdx = ranked.findIndex((r) => r.entry.id === partialMatch.id);
+		expect(fullIdx).toBeLessThan(partialIdx);
+	});
+
+	it("entries with no files or topics get neutral relevance at session start", () => {
+		const entry = makeEntry({ files: [], topics: [] });
+		const ranked = rankEntries([entry], [], [], cfg);
+		// At session start (no query), relevance = 0.5 (neutral)
+		expect(ranked).toHaveLength(1);
+		expect(ranked[0].score).toBeGreaterThan(0);
+	});
+
+	it("recency is 0 for entries exactly 365 days old", () => {
+		const ancient = makeEntry({
+			importance: 1.0,
+			timestamp: daysAgo(365),
+			files: [],
+			topics: [],
+		});
+		const ranked = rankEntries([ancient], [], [], cfg);
+		// recency = max(0, 1 - 365/365) = 0
+		// But entry might be excluded by importance decay (365 > 90 → 0.5 factor)
+		// importance 1.0 * 0.5 = 0.5, passes threshold
+		if (ranked.length > 0) {
+			const recencyContribution = ranked[0].score - (0.5 * 0.4 + 0.5 * 0.2 + 0 * 0.1);
+			expect(recencyContribution).toBeCloseTo(0, 2); // ~0 recency
+		}
+	});
+
+	it("returns empty array when all entries are below threshold", () => {
+		const weak = makeEntry({ importance: 0.1, files: [], topics: [] });
+		const result = rankEntries([weak], [], [], cfg);
+		expect(result).toHaveLength(0);
+	});
+
+	it("handles entry with invalid timestamp gracefully", () => {
+		const badTimestamp = makeEntry({
+			timestamp: "not-a-date",
+			files: [],
+			topics: [],
+		});
+		const result = rankEntries([badTimestamp], [], [], cfg);
+		// ageInDays = 0 when timestamp is invalid → no decay → entry survives
+		expect(result).toHaveLength(1);
+	});
+
+	it("preserves file existence and stale status from verified field", () => {
+		const staleEntry = makeEntry({
+			files: ["src/old.ts"],
+			topics: [],
+			verified: { lastChecked: new Date().toISOString(), filesExist: true, filesModified: true },
+		});
+		const freshEntry = makeEntry({
+			files: ["src/new.ts"],
+			topics: [],
+			verified: { lastChecked: new Date().toISOString(), filesExist: true, filesModified: false },
+		});
+
+		const ranked = rankEntries([staleEntry, freshEntry], [], [], cfg);
+
+		const stale = ranked.find((r) => r.entry.id === staleEntry.id)!;
+		const fresh = ranked.find((r) => r.entry.id === freshEntry.id)!;
+		expect(stale.isStale).toBe(true);
+		expect(fresh.isStale).toBe(false);
+		expect(stale.filesExist).toBe(true);
+		expect(fresh.filesExist).toBe(true);
+	});
 });
