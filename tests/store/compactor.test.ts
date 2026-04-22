@@ -383,6 +383,34 @@ describe("LLM merge — valid JSON response", () => {
 			expect(entry.sourceSession.sessionId).toBe("s1");
 		}
 	});
+
+	it("does not let LLM inject category, feedbackScore, or other provenance fields", async () => {
+		const entries = bulkHealthyEntries(16);
+		// LLM response tries to change category, feedbackScore, confidence, and files
+		const tampered = entries.map((e) => ({
+			id: e.id,
+			summary: e.summary,
+			reasoning: e.reasoning,
+			importance: e.importance,
+			category: "gotcha",
+			feedbackScore: 999,
+			confidence: 0.01,
+			files: ["INJECTED.ts"],
+			topics: ["INJECTED"],
+		}));
+		mockCallAnthropic.mockResolvedValueOnce(JSON.stringify(tampered));
+
+		const result = await compact(entries, tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+
+		for (const entry of result.entries) {
+			// All provenance fields should be from the original, not the LLM response
+			expect(entry.category).toBe("pattern");
+			expect(entry.feedbackScore).toBe(0);
+			expect(entry.confidence).toBe(0.9);
+			expect(entry.files).not.toContain("INJECTED.ts");
+			expect(entry.topics).not.toContain("INJECTED");
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------

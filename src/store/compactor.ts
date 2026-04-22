@@ -196,7 +196,11 @@ ${entriesJson}`;
 			const original = entryMap.get(id);
 
 			if (original) {
-				// Apply any changes from the LLM while preserving provenance
+				// SECURITY: Only these 3 fields may be overwritten by the LLM.
+				// The spread of `original` provides the base, then only summary,
+				// reasoning, and importance are conditionally replaced. All other
+				// fields (category, feedbackScore, files, topics, timestamp, etc.)
+				// are preserved from the original — do NOT spread `record` here.
 				const merged = {
 					...original,
 					summary: typeof record.summary === "string" ? record.summary : original.summary,
