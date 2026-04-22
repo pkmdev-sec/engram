@@ -638,6 +638,32 @@ function cmdClear(): void {
 	console.log(`Cleared ${count} entries from brain.`);
 }
 
+function cmdRemove(args: string[]): void {
+	const entryId = args[0];
+	if (!entryId) {
+		console.error("Usage: engram remove <entry-id>");
+		process.exit(1);
+	}
+
+	const projectDir = process.cwd();
+	const projectId = projectIdFromPath(projectDir);
+	const store = new BrainStore(projectId);
+	const entries = store.loadEntries();
+	const entry = entries.find((e) => e.id === entryId);
+
+	if (!entry) {
+		console.error(`Entry ${entryId} not found in project brain.`);
+		process.exit(1);
+	}
+
+	const filtered = entries.filter((e) => e.id !== entryId);
+	store.replaceEntries(filtered);
+	store.saveIndex(buildIndex(filtered, projectId));
+	console.log(`Removed entry ${entryId} from project brain.`);
+	console.log(`  [${entry.category}] ${entry.summary}`);
+	console.log(`  ${filtered.length} entries remain.`);
+}
+
 // -- Injection State Persistence --
 // Stored in a temp file per project so drift detection works across hook invocations.
 
@@ -715,6 +741,9 @@ async function main(): Promise<void> {
 		case "clear":
 			cmdClear();
 			break;
+		case "remove":
+			cmdRemove(args.slice(1));
+			break;
 		case "promote":
 			cmdPromote(args.slice(1));
 			break;
@@ -748,6 +777,7 @@ Commands:
   feedback <session.jsonl>     Track which injected entries the agent used
   show                         Display brain contents
   stats                        Show brain statistics
+  remove <entry-id>            Remove a single entry from project brain
   clear                        Clear the brain for this project
   help                         Show this help
 
