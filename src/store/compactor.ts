@@ -40,8 +40,11 @@ export async function compact(
 ): Promise<CompactionResult> {
 	const before = entries.length;
 
+	// Single directory walk, shared by both phases
+	const projectFiles = listProjectFiles(projectDir);
+
 	// Phase 1: deterministic pruning
-	const afterPrune = deterministicPrune(entries, projectDir, injectionConfig);
+	const afterPrune = deterministicPrune(entries, projectFiles, injectionConfig);
 	const pruned = before - afterPrune.length;
 
 	// Phase 2: LLM merge — only for entries without positive feedback.
@@ -53,7 +56,7 @@ export async function compact(
 	let merged = 0;
 
 	if (unproven.length > 15) {
-		const mergeResult = await llmMerge(unproven, projectDir, compactionConfig);
+		const mergeResult = await llmMerge(unproven, projectFiles, compactionConfig);
 		final = [...proven, ...mergeResult.entries];
 		merged = unproven.length - mergeResult.entries.length;
 	} else {
@@ -82,11 +85,10 @@ export async function compact(
  */
 function deterministicPrune(
 	entries: readonly KnowledgeEntry[],
-	projectDir: string,
+	projectFiles: ReadonlySet<string>,
 	config: InjectionConfig,
 ): KnowledgeEntry[] {
 	const now = Date.now();
-	const projectFiles = listProjectFiles(projectDir);
 
 	return entries.filter((entry) => {
 		// Rule 1: delete expired entries
@@ -128,10 +130,9 @@ function deterministicPrune(
  */
 async function llmMerge(
 	entries: KnowledgeEntry[],
-	projectDir: string,
+	projectFiles: ReadonlySet<string>,
 	config: CompactionConfig,
 ): Promise<{ entries: KnowledgeEntry[] }> {
-	const projectFiles = listProjectFiles(projectDir);
 	const fileList = [...projectFiles].slice(0, 200).join("\n");
 
 	const entriesJson = JSON.stringify(
@@ -265,8 +266,10 @@ function listProjectFiles(projectDir: string): Set<string> {
 	return files;
 }
 
+const MAX_PROJECT_FILES = 10_000;
+
 function walk(base: string, rel: string, out: Set<string>, depth: number): void {
-	if (depth > 8) return; // Don't descend too deep
+	if (depth > 8 || out.size >= MAX_PROJECT_FILES) return;
 	const dir = rel ? join(base, rel) : base;
 
 	let dirEntries: import("node:fs").Dirent[];
@@ -277,6 +280,7 @@ function walk(base: string, rel: string, out: Set<string>, depth: number): void 
 	}
 
 	for (const entry of dirEntries) {
+		if (out.size >= MAX_PROJECT_FILES) return;
 		const name = String(entry.name);
 		if (name.startsWith(".") || name === "node_modules" || name === "dist") {
 			continue;
