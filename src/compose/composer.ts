@@ -51,10 +51,18 @@ export function compose(
 	}
 	const deduped = dedupGlobalEntries(rankedEntries, projectTopics);
 
+	// Drop stale entries with negative feedback — they describe outdated state
+	// that the agent actively ignored. Stale entries with zero feedback are kept
+	// (untested, deserve a chance). Stale entries with positive feedback are kept
+	// (proven valuable despite file changes).
+	const fresh = deduped.filter(
+		(r) => !r.isStale || r.entry.feedbackScore >= 0,
+	);
+
 	const imperativeEntries: RankedEntry[] = [];
 	const informationalEntries: RankedEntry[] = [];
 
-	for (const ranked of deduped) {
+	for (const ranked of fresh) {
 		if (IMPERATIVE_CATEGORIES.has(ranked.entry.category)) {
 			imperativeEntries.push(ranked);
 		} else {

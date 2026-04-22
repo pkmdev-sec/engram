@@ -126,6 +126,40 @@ describe("compose", () => {
 		expect(result.includedIds).not.toContain(entries[2].entry.id);
 	});
 
+	it("excludes stale entries with negative feedback", () => {
+		const staleNegative = makeRankedEntry({
+			entry: { category: "gotcha", summary: "Stale ignored gotcha", feedbackScore: -0.1 },
+			isStale: true,
+		});
+		const staleUntested = makeRankedEntry({
+			entry: { category: "gotcha", summary: "Stale untested gotcha", feedbackScore: 0 },
+			isStale: true,
+		});
+		const staleProven = makeRankedEntry({
+			entry: { category: "gotcha", summary: "Proven gotcha", feedbackScore: 0.1 },
+			isStale: true,
+		});
+		const freshEntry = makeRankedEntry({
+			entry: { category: "architecture", summary: "Fresh arch" },
+			isStale: false,
+		});
+
+		const result = compose(
+			[staleNegative, staleUntested, staleProven, freshEntry],
+			cfg,
+			"session-start",
+		);
+
+		// Negative feedback + stale → excluded (actively ignored)
+		expect(result.includedIds).not.toContain(staleNegative.entry.id);
+		// Zero feedback + stale → kept (untested, deserves a chance)
+		expect(result.includedIds).toContain(staleUntested.entry.id);
+		// Positive feedback + stale → kept (proven valuable)
+		expect(result.includedIds).toContain(staleProven.entry.id);
+		// Fresh → always kept
+		expect(result.includedIds).toContain(freshEntry.entry.id);
+	});
+
 	it("returns included IDs and covered files/topics", () => {
 		// Two entries with partially overlapping files and topics.
 		// The returned Sets must contain the union of all references.
