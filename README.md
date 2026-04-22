@@ -9,22 +9,38 @@ Knowledge intelligence layer for AI coding agents. Extracts knowledge from compl
 ## How it works
 
 ```
-Session ends ──> DISTILL ──> VALIDATE ──> STORE
-                  (Opus)     (rules)    (brain.jsonl)
-                                             |
-New session ──> RECALL ──> COMPOSE ──> INJECT
-               (rank)    (budget)   (CLAUDE.md)
+Session ends
+    │
+    ▼
+ DISTILL (Opus)
+    │
+    ▼
+ VALIDATE (rules)
+    │
+    ▼
+ STORE (brain.jsonl)
+    │
+    ▼
+ RECALL (rank)
+    │
+    ▼
+ COMPOSE (budget)
+    │
+    ▼
+ INJECT (CLAUDE.md)
+    │
+    ▼
+New session starts
 ```
 
 ### Pipeline
 
 ```mermaid
-graph LR
+graph TD
     A[Session JSONL] -->|parse| B[Transcript + Tool Activity]
     B -->|Opus 4.6| C[Raw Entries]
     C -->|validate + dedup| D[KnowledgeEntry objects]
     D -->|append| E[(brain.jsonl)]
-
     E -->|load| F[Verify against disk]
     F -->|rank by relevance| G[Scored entries]
     G -->|budget cap| H[Composed markdown]
