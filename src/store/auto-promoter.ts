@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 import type { KnowledgeEntry } from "../types.js";
+import { wordOverlap } from "../util/text.js";
 import { isValidEntry } from "./brain-store.js";
 
 const PENDING_FILE = "pending.jsonl";
@@ -285,23 +286,3 @@ function quarantineEntry(
 	appendFileSync(pendingPath, JSON.stringify(pending) + "\n", "utf-8");
 }
 
-/** Jaccard similarity on word sets — same algorithm as validator.ts */
-function wordOverlap(a: string, b: string): number {
-	const wordsA = tokenize(a);
-	const wordsB = tokenize(b);
-	if (wordsA.size === 0 && wordsB.size === 0) return 1;
-	if (wordsA.size === 0 || wordsB.size === 0) return 0;
-
-	let intersectionSize = 0;
-	for (const word of wordsA) {
-		if (wordsB.has(word)) intersectionSize++;
-	}
-	const unionSize = wordsA.size + wordsB.size - intersectionSize;
-	return intersectionSize / unionSize;
-}
-
-function tokenize(text: string): Set<string> {
-	return new Set(
-		text.toLowerCase().split(/\W+/).filter((t) => t.length > 0),
-	);
-}

@@ -1,4 +1,5 @@
 import type { InjectionState } from "../types.js";
+import { intersectionSize } from "../util/text.js";
 
 // Common English words that carry no signal about the topic being discussed.
 // Keeping this list narrow — overly broad stop-word lists suppress legitimate
@@ -81,13 +82,6 @@ function extractTopics(message: string): string[] {
 	return result;
 }
 
-function intersectionSize(a: string[], b: Set<string>): number {
-	let count = 0;
-	for (const item of a) {
-		if (b.has(item)) count++;
-	}
-	return count;
-}
 
 export interface DriftResult {
 	readonly drifted: boolean;

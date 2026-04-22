@@ -7,6 +7,7 @@
  */
 
 import type { EntryCategory, KnowledgeEntry, RawDistillerEntry } from "../types.js";
+import { wordOverlap } from "../util/text.js";
 
 const VALID_CATEGORIES: ReadonlySet<string> = new Set<EntryCategory>([
 	"constraint",
@@ -256,37 +257,3 @@ function hasStringArrayField(record: Record<string, unknown>, key: string): bool
 	);
 }
 
-// --- Word overlap (Jaccard on word sets) ---
-
-/**
- * Computes the Jaccard similarity between the word sets of two strings.
- *
- * Lowercases and splits on non-word characters. Short function words ("the",
- * "a", "is", etc.) are NOT filtered out — they are part of the signal for
- * detecting near-identical summaries, and filtering them would make evasion
- * easier.
- */
-function wordOverlap(a: string, b: string): number {
-	const wordsA = tokenize(a);
-	const wordsB = tokenize(b);
-
-	if (wordsA.size === 0 && wordsB.size === 0) return 1;
-	if (wordsA.size === 0 || wordsB.size === 0) return 0;
-
-	let intersectionSize = 0;
-	for (const word of wordsA) {
-		if (wordsB.has(word)) intersectionSize++;
-	}
-
-	const unionSize = wordsA.size + wordsB.size - intersectionSize;
-	return intersectionSize / unionSize;
-}
-
-function tokenize(text: string): Set<string> {
-	return new Set(
-		text
-			.toLowerCase()
-			.split(/\W+/)
-			.filter((token) => token.length > 0),
-	);
-}
