@@ -121,7 +121,7 @@ describe("composeSessionStart", () => {
 		expect(entryLine!.startsWith("- ")).toBe(true);
 	});
 
-	it("entry line contains summary only — reasoning not injected", () => {
+	it("informational entries contain summary only — reasoning not injected", () => {
 		const entries = [
 			makeRanked({
 				category: "architecture",
@@ -132,6 +132,63 @@ describe("composeSessionStart", () => {
 		const result = composeSessionStart(entries, TIMESTAMP);
 		expect(result).toContain("Use dependency injection");
 		expect(result).not.toContain("Decouples construction from use");
+	});
+
+	it("imperative entries (constraint) include reasoning anchor", () => {
+		const entries = [
+			makeRanked({
+				category: "constraint",
+				summary: "Never import from internal/",
+				reasoning: "Breaks package encapsulation and causes circular deps.",
+			}),
+		];
+		const result = composeSessionStart(entries, TIMESTAMP);
+		expect(result).toContain("Never import from internal/");
+		expect(result).toContain("— Why: Breaks package encapsulation and causes circular deps.");
+	});
+
+	it("imperative entries (gotcha) include reasoning anchor", () => {
+		const entries = [
+			makeRanked({
+				category: "gotcha",
+				summary: "ORM silently drops unknown fields",
+				reasoning: "The active migration schema is the source of truth.",
+			}),
+		];
+		const result = composeSessionStart(entries, TIMESTAMP);
+		expect(result).toContain("— Why: The active migration schema is the source of truth.");
+	});
+
+	it("reasoning anchor is truncated to first sentence when over 100 chars", () => {
+		const entries = [
+			makeRanked({
+				category: "failed-approach",
+				summary: "Do not mock Prisma",
+				reasoning: "The mock diverges from real behavior. Additionally the setup takes longer than using a real test DB and produces flaky failures on CI.",
+			}),
+		];
+		const result = composeSessionStart(entries, TIMESTAMP);
+		expect(result).toContain("— Why: The mock diverges from real behavior.");
+		expect(result).not.toContain("Additionally");
+	});
+
+	it("reasoning anchor truncates long single-sentence reasoning at 100 chars", () => {
+		const longReasoning = "A".repeat(120);
+		const entries = [
+			makeRanked({
+				category: "constraint",
+				summary: "Test entry",
+				reasoning: longReasoning,
+			}),
+		];
+		const result = composeSessionStart(entries, TIMESTAMP);
+		const line = result.split("\n").find((l) => l.includes("Test entry"))!;
+		expect(line).toContain("— Why:");
+		expect(line).toContain("...");
+		// The "Why:" portion should not exceed 100 chars of reasoning
+		const whyIdx = line.indexOf("— Why: ");
+		const afterWhy = line.slice(whyIdx + "— Why: ".length);
+		expect(afterWhy.replace(" [stale]", "").length).toBeLessThanOrEqual(100);
 	});
 
 	it("global entries (crossProject: true) get '(global)' prefix", () => {

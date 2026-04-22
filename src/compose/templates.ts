@@ -1,4 +1,5 @@
 import type { RankedEntry, EntryCategory } from "../types.js";
+import { IMPERATIVE_CATEGORIES } from "../types.js";
 
 // Maps each category to its section heading in the CLAUDE.md output.
 // Order here determines section order in the rendered output.
@@ -21,6 +22,15 @@ function sanitizeForClaudeMd(text: string): string {
 	return text.replace(/<!--/g, "").replace(/-->/g, "");
 }
 
+/** Extract the first sentence, capped at maxChars. Returns empty string if input is empty. */
+function truncateToFirstSentence(text: string, maxChars: number): string {
+	const periodIdx = text.indexOf(". ");
+	const firstSentence = periodIdx > 0 ? text.slice(0, periodIdx + 1) : text;
+	return firstSentence.length <= maxChars
+		? firstSentence
+		: firstSentence.slice(0, maxChars - 3) + "...";
+}
+
 function buildEntryLine(ranked: RankedEntry): string {
 	const { entry, isStale } = ranked;
 	const parts: string[] = [];
@@ -36,9 +46,17 @@ function buildEntryLine(ranked: RankedEntry): string {
 		parts.push("(unverified)");
 	}
 
-	// Summary only — reasoning is provenance metadata, not injection content.
-	// Keeping it out preserves signal density and gives the agent room to think.
 	parts.push(sanitizeForClaudeMd(entry.summary));
+
+	// Reasoning anchor: imperative entries (constraint, gotcha, failed-approach)
+	// benefit from a brief "why" so the agent can judge edge cases. Informational
+	// entries stay summary-only to preserve signal density.
+	if (IMPERATIVE_CATEGORIES.has(entry.category) && entry.reasoning) {
+		const brief = truncateToFirstSentence(entry.reasoning, 100);
+		if (brief) {
+			parts.push(`— Why: ${sanitizeForClaudeMd(brief)}`);
+		}
+	}
 
 	// Stale suffix: entry references files that have been modified since
 	// extraction — the fact may still be correct but needs re-verification.
