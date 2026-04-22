@@ -201,7 +201,7 @@ export const DEFAULT_CONFIG: AgentConfig = {
 		overlapThreshold: 0.3,
 	},
 	global: {
-		enabled: false,
+		enabled: true,
 		maxEntries: 35,
 		categoryMultipliers: {
 			"user-preference": 1.0,
