@@ -81,6 +81,22 @@ export async function compact(
 }
 
 /**
+ * Lightweight prune that runs deterministic rules only (no LLM call).
+ * Safe to call after every distillation to keep the brain clean between
+ * full compaction runs.
+ *
+ * @returns The pruned entries, or the original array if nothing was removed.
+ */
+export function quickPrune(
+	entries: readonly KnowledgeEntry[],
+	projectDir: string,
+	injectionConfig: InjectionConfig,
+): KnowledgeEntry[] {
+	const projectFiles = listProjectFiles(projectDir);
+	return deterministicPrune(entries, projectFiles, injectionConfig);
+}
+
+/**
  * Phase 1: deterministic rules that don't need an LLM.
  */
 function deterministicPrune(

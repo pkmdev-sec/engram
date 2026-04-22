@@ -33,7 +33,7 @@ import {
 	scanForCrossProjectKnowledge,
 } from "./store/auto-promoter.js";
 import { BrainStore } from "./store/brain-store.js";
-import { compact } from "./store/compactor.js";
+import { compact, quickPrune } from "./store/compactor.js";
 import { buildIndex, queryIndex } from "./store/indexer.js";
 
 /** Compute a stable project ID from the working directory path. */
@@ -151,7 +151,18 @@ async function cmdDistill(args: string[]): Promise<void> {
 	if (!existsSync(metaPath)) {
 		writeFileSync(metaPath, JSON.stringify({ projectDir, projectId }, null, 2), "utf-8");
 	}
-	const allEntries = store.loadEntries();
+	let allEntries = store.loadEntries();
+
+	// Run lightweight prune every distill — removes expired, dead-file,
+	// low-importance, and negative-feedback entries without waiting for
+	// the full compaction threshold.
+	const pruned = quickPrune(allEntries, projectDir, config.injection);
+	if (pruned.length < allEntries.length) {
+		store.replaceEntries(pruned);
+		console.log(`Pruned ${allEntries.length - pruned.length} stale entries.`);
+		allEntries = pruned;
+	}
+
 	const index = buildIndex(allEntries, projectId);
 	store.saveIndex(index);
 
