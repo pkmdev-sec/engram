@@ -19,16 +19,24 @@ New session  ◀── INJECT (CLAUDE.md) ◀── COMPOSE (budget) ◀── R
 ### Pipeline
 
 ```mermaid
-graph LR
-    A[Session JSONL] -->|parse| B[Transcript]
-    B -->|Opus| C[Raw Entries]
-    C -->|validate| D[KnowledgeEntry]
+graph TD
+    subgraph Write["Session ends → Extract knowledge"]
+        direction LR
+        A[Session JSONL] -->|parse| B[Transcript]
+        B -->|Opus| C[Raw Entries]
+        C -->|validate| D[KnowledgeEntry]
+    end
+
     D -->|append| E[(brain.jsonl)]
 
-    E -->|load| F[Verify]
-    F -->|rank| G[Scored]
-    G -->|budget| H[Markdown]
-    H -->|write| I[CLAUDE.md]
+    subgraph Read["New session → Inject context"]
+        direction LR
+        F[Verify] -->|rank| G[Scored]
+        G -->|budget| H[Markdown]
+        H -->|write| I[CLAUDE.md]
+    end
+
+    E -->|load| F
 ```
 
 ### What each stage does
