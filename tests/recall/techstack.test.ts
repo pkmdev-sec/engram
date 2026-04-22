@@ -400,10 +400,10 @@ describe("techRelevance", () => {
 		expect(techRelevance(["express"], stack)).toBe(1.0);
 	});
 
-	it("returns 1.0 when at least one topic matches even if others do not", () => {
-		// "go" matches; "haskell" does not.
+	it("returns proportional score when some topics match and others do not", () => {
+		// "go" matches; "haskell" does not → 1/2 match → 0.5 + 0.5 * 0.5 = 0.75
 		const stack = makeStack({ languages: ["go", "python"], packages: [] });
-		expect(techRelevance(["go", "haskell"], stack)).toBe(1.0);
+		expect(techRelevance(["go", "haskell"], stack)).toBe(0.75);
 	});
 
 	it("returns 0.5 when all entry topics are non-matching technologies", () => {

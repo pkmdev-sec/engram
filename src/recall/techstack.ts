@@ -38,8 +38,9 @@ export function detectTechStack(projectDir: string, cacheDir: string): TechStack
 
 /**
  * Returns a relevance multiplier for a global entry based on tech stack overlap.
- *   1.0 — entry topics are empty (universal) or match the stack
- *   0.5 — entry mentions technologies not in this project
+ *   1.0  — entry topics are empty (universal), stack is empty, or all topics match
+ *   0.5  — no topics match at all
+ *   0.5–1.0 — proportional to the fraction of topics that match
  */
 export function techRelevance(
 	entryTopics: readonly string[],
@@ -49,7 +50,7 @@ export function techRelevance(
 	const stackTerms = new Set([...stack.languages, ...stack.packages].map((s) => s.toLowerCase()));
 	if (stackTerms.size === 0) return 1.0;
 	const matches = entryTopics.filter((t) => stackTerms.has(t.toLowerCase())).length;
-	return matches > 0 ? 1.0 : 0.5;
+	return 0.5 + 0.5 * (matches / entryTopics.length);
 }
 
 // -- Internal --
