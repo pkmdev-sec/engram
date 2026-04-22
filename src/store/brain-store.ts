@@ -3,16 +3,7 @@ import * as os from "os";
 import * as path from "path";
 
 import type { BrainIndex, KnowledgeEntry } from "../types.js";
-
-const POISONING_PATTERNS: readonly RegExp[] = [
-    /\balways approve\b/i,
-    /\bskip review\b/i,
-    /\bignore warnings?\b/i,
-    /\bdon'?t verify\b/i,
-    /\bdo not verify\b/i,
-    /\bbypass\b/i,
-    /\bdisable check\b/i,
-];
+import { POISONING_PATTERNS } from "../types.js";
 
 export function isValidEntry(entry: unknown): entry is KnowledgeEntry {
     if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;

@@ -248,3 +248,22 @@ export interface SessionTranscript {
 	readonly projectPath?: string;
 	readonly toolActivity?: ToolActivity;
 }
+
+// -- Security --
+
+/**
+ * Anti-poisoning patterns: phrases that attempt to give future AI sessions
+ * blanket permissions or instruct them to skip safety/review steps.
+ *
+ * Used at write time (validator), read time (brain-store), and user input
+ * time (set-preference). Canonical source — do not duplicate.
+ */
+export const POISONING_PATTERNS: readonly RegExp[] = [
+	/\balways approve\b/i,
+	/\bskip review\b/i,
+	/\bignore warnings?\b/i,
+	/\bdon'?t verify\b/i,
+	/\bdo not verify\b/i,
+	/\bbypass\b/i,
+	/\bdisable check\b/i,
+];

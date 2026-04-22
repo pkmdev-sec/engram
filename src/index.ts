@@ -20,7 +20,7 @@ import type {
 	InjectionState,
 	KnowledgeEntry,
 } from "./types.js";
-import { DEFAULT_CONFIG } from "./types.js";
+import { DEFAULT_CONFIG, POISONING_PATTERNS } from "./types.js";
 
 import { parseClaudeSession } from "./ingest/session-parser.js";
 import { distill } from "./distill/distiller.js";
@@ -492,16 +492,6 @@ function cmdDemote(args: string[]): void {
 	console.log(`Demoted entry ${entryId} from global brain. ${filtered.length} entries remain.`);
 }
 
-const PREFERENCE_POISONING_PATTERNS: readonly RegExp[] = [
-	/\balways approve\b/i,
-	/\bskip review\b/i,
-	/\bignore warnings?\b/i,
-	/\bdon'?t verify\b/i,
-	/\bdo not verify\b/i,
-	/\bbypass\b/i,
-	/\bdisable check\b/i,
-];
-
 function cmdSetPreference(args: string[]): void {
 	const summary = args.join(" ");
 	if (!summary || summary.length < 10) {
@@ -510,7 +500,7 @@ function cmdSetPreference(args: string[]): void {
 		process.exit(1);
 	}
 
-	for (const pattern of PREFERENCE_POISONING_PATTERNS) {
+	for (const pattern of POISONING_PATTERNS) {
 		if (pattern.test(summary)) {
 			console.error(`Preference rejected: contains disallowed pattern "${pattern.source}". This looks like a prompt injection attempt.`);
 			process.exit(1);

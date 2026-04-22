@@ -7,6 +7,7 @@
  */
 
 import type { EntryCategory, KnowledgeEntry, RawDistillerEntry } from "../types.js";
+import { POISONING_PATTERNS } from "../types.js";
 import { wordOverlap } from "../util/text.js";
 
 const VALID_CATEGORIES: ReadonlySet<string> = new Set<EntryCategory>([
@@ -36,20 +37,6 @@ const HEDGING_PATTERNS: readonly RegExp[] = [
 	/\bcould be\b/i,
 ];
 
-/**
- * Anti-poisoning: phrases that attempt to give future AI sessions blanket
- * permissions or instruct them to skip safety/review steps. These are the
- * hallmarks of a prompt-injection attack embedded in session content.
- */
-const POISONING_PATTERNS: readonly RegExp[] = [
-	/\balways approve\b/i,
-	/\bskip review\b/i,
-	/\bignore warnings?\b/i,
-	/\bdon'?t verify\b/i,
-	/\bdo not verify\b/i,
-	/\bbypass\b/i,
-	/\bdisable check\b/i,
-];
 
 /** Maximum number of entries the distiller is allowed to produce in one pass. */
 const MAX_ENTRIES = 10;
