@@ -74,9 +74,9 @@ sequenceDiagram
 ```
 
 Hook files in `~/.claude/hooks/`:
-- `pi-brain-session-start.sh` — injects brain into CLAUDE.md
-- `pi-brain-user-prompt.sh` — detects drift, injects relevant context
-- `pi-brain-session-end.sh` — runs feedback tracking + distillation
+- `engram-session-start.sh` — injects brain into CLAUDE.md
+- `engram-user-prompt.sh` — detects drift, injects relevant context
+- `engram-session-end.sh` — runs feedback tracking + distillation
 
 ## CLI
 
