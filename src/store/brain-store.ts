@@ -137,18 +137,29 @@ export class BrainStore {
 	/**
 	 * Update a single entry's feedbackScore in place.
 	 *
-	 * Loads all entries, finds the target by id, produces a new entry object
-	 * with the updated score, then rewrites the full file. This is a full
-	 * read-modify-write cycle — acceptable given the small store size.
-	 *
-	 * If no entry with the given id exists, the call is a silent no-op.
+	 * Delegates to updateFeedbackBatch. Prefer calling updateFeedbackBatch
+	 * directly when updating multiple entries to avoid repeated I/O.
 	 */
 	updateFeedback(entryId: string, newScore: number): void {
+		this.updateFeedbackBatch(new Map([[entryId, newScore]]));
+	}
+
+	/**
+	 * Batch-update feedbackScores for multiple entries in a single
+	 * read-modify-write cycle.
+	 *
+	 * Entries whose IDs don't match any key in `changes` are left untouched.
+	 * If no matching entries are found, the file is not rewritten.
+	 */
+	updateFeedbackBatch(changes: ReadonlyMap<string, number>): void {
+		if (changes.size === 0) return;
+
 		const entries = this.loadEntries();
 		let mutated = false;
 
 		const updated = entries.map((entry) => {
-			if (entry.id !== entryId) return entry;
+			const newScore = changes.get(entry.id);
+			if (newScore === undefined) return entry;
 			mutated = true;
 			return { ...entry, feedbackScore: newScore };
 		});

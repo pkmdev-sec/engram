@@ -425,9 +425,7 @@ function cmdFeedback(args: string[]): void {
 		return;
 	}
 
-	for (const [entryId, newScore] of changes) {
-		store.updateFeedback(entryId, newScore);
-	}
+	store.updateFeedbackBatch(changes);
 
 	const boosted = [...changes.values()].filter((_, i) => {
 		const entryId = [...changes.keys()][i];

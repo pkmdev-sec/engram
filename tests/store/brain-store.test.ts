@@ -145,6 +145,48 @@ describe("BrainStore", () => {
 		expect(loaded[0]!.feedbackScore).toBe(0.05);
 	});
 
+	it("updateFeedbackBatch updates multiple entries in a single write", () => {
+		const a = makeEntry({ id: "id-a", feedbackScore: 0 });
+		const b = makeEntry({ id: "id-b", feedbackScore: 0 });
+		const c = makeEntry({ id: "id-c", feedbackScore: 0.1 });
+		store.appendEntries([a, b, c]);
+
+		store.updateFeedbackBatch(new Map([
+			["id-a", 0.15],
+			["id-b", -0.05],
+		]));
+
+		const loaded = store.loadEntries();
+		const byId = Object.fromEntries(loaded.map((e) => [e.id, e]));
+		expect(byId["id-a"]!.feedbackScore).toBe(0.15);
+		expect(byId["id-b"]!.feedbackScore).toBe(-0.05);
+		expect(byId["id-c"]!.feedbackScore).toBe(0.1); // untouched
+	});
+
+	it("updateFeedbackBatch is no-op for empty map", () => {
+		const entry = makeEntry({ id: "id-x", feedbackScore: 0.05 });
+		store.appendEntries([entry]);
+
+		store.updateFeedbackBatch(new Map());
+
+		const loaded = store.loadEntries();
+		expect(loaded[0]!.feedbackScore).toBe(0.05);
+	});
+
+	it("updateFeedbackBatch ignores unknown IDs without crashing", () => {
+		const entry = makeEntry({ id: "id-real", feedbackScore: 0.1 });
+		store.appendEntries([entry]);
+
+		store.updateFeedbackBatch(new Map([
+			["id-real", 0.2],
+			["id-ghost", 0.9],
+		]));
+
+		const loaded = store.loadEntries();
+		expect(loaded).toHaveLength(1);
+		expect(loaded[0]!.feedbackScore).toBe(0.2);
+	});
+
 	it("entryCount returns correct count", () => {
 		expect(store.entryCount()).toBe(0);
 
