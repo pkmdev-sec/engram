@@ -10,9 +10,9 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, appendFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 
 import type { KnowledgeEntry } from "../types.js";
 import { wordOverlap } from "../util/text.js";
@@ -145,7 +145,7 @@ export function promoteQuarantinedEntries(globalDir: string): number {
 			crossProject: true,
 			promotedFrom: p.matchingProjects,
 		};
-		appendFileSync(brainPath, JSON.stringify(promotedEntry) + "\n", "utf-8");
+		appendFileSync(brainPath, `${JSON.stringify(promotedEntry)}\n`, "utf-8");
 
 		// Log the promotion
 		const logEntry = {
@@ -157,13 +157,12 @@ export function promoteQuarantinedEntries(globalDir: string): number {
 			matchingProjects: p.matchingProjects,
 			quarantineDays: Math.floor((now - Date.parse(p.quarantinedAt)) / 86_400_000),
 		};
-		appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf-8");
+		appendFileSync(logPath, `${JSON.stringify(logEntry)}\n`, "utf-8");
 	}
 
 	// Rewrite pending file with remaining entries
-	const remainingPayload = pending.length > 0
-		? pending.map((p) => JSON.stringify(p)).join("\n") + "\n"
-		: "";
+	const remainingPayload =
+		pending.length > 0 ? `${pending.map((p) => JSON.stringify(p)).join("\n")}\n` : "";
 	writeFileSync(pendingPath, remainingPayload, "utf-8");
 
 	return promoted.length;
@@ -261,11 +260,10 @@ function findProjectDir(projectDir: string): string | null {
 
 function getGitRemote(projectDir: string): string | null {
 	try {
-		const output = execFileSync(
-			"git",
-			["remote", "get-url", "origin"],
-			{ cwd: projectDir, encoding: "utf-8" },
-		);
+		const output = execFileSync("git", ["remote", "get-url", "origin"], {
+			cwd: projectDir,
+			encoding: "utf-8",
+		});
 		return output.trim() || null;
 	} catch {
 		return null;
@@ -283,6 +281,5 @@ function quarantineEntry(
 		matchingProjects,
 		quarantinedAt: new Date().toISOString(),
 	};
-	appendFileSync(pendingPath, JSON.stringify(pending) + "\n", "utf-8");
+	appendFileSync(pendingPath, `${JSON.stringify(pending)}\n`, "utf-8");
 }
-

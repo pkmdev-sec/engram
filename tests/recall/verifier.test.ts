@@ -88,7 +88,7 @@ describe("verifyEntries", () => {
 		const result = verifyEntries([entry], tmpDir);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]!.id).toBe("partial");
+		expect(result[0]?.id).toBe("partial");
 	});
 
 	it("keeps entries where all referenced files exist", () => {
@@ -119,7 +119,7 @@ describe("verifyEntries", () => {
 		const result = verifyEntries([entry], tmpDir);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]!.id).toBe("topic-only");
+		expect(result[0]?.id).toBe("topic-only");
 	});
 
 	it("passes through topic-only entries even when tmpDir is empty", () => {
@@ -142,7 +142,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: ["present.ts", "missing.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesExist).toBe(true);
+		expect(result?.verified?.filesExist).toBe(true);
 	});
 
 	it("sets filesExist to false when no files exist (entry filtered out)", () => {
@@ -160,7 +160,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: [] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesExist).toBe(true);
+		expect(result?.verified?.filesExist).toBe(true);
 	});
 
 	// -------------------------------------------------------------------------
@@ -175,7 +175,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: ["changed.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(true);
+		expect(result?.verified?.filesModified).toBe(true);
 	});
 
 	it("sets filesModified to false when git log returns empty output", () => {
@@ -185,7 +185,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: ["stable.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(false);
+		expect(result?.verified?.filesModified).toBe(false);
 	});
 
 	it("sets filesModified to false when git log returns only whitespace", () => {
@@ -195,7 +195,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: ["whitespace.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(false);
+		expect(result?.verified?.filesModified).toBe(false);
 	});
 
 	it("sets filesModified to false when execFileSync throws (git unavailable)", () => {
@@ -207,7 +207,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: ["file.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(false);
+		expect(result?.verified?.filesModified).toBe(false);
 	});
 
 	it("sets filesModified to true if ANY file has recent commits", () => {
@@ -220,7 +220,7 @@ describe("verifyEntries", () => {
 		const entry = makeEntry({ files: ["a.ts", "b.ts"] });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(true);
+		expect(result?.verified?.filesModified).toBe(true);
 	});
 
 	it("passes the entry timestamp as --since to git log", () => {
@@ -263,14 +263,14 @@ describe("verifyEntries", () => {
 
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(true);
+		expect(result?.verified?.filesModified).toBe(true);
 	});
 
 	it("topic-only entries default filesModified to false when no prior verified state", () => {
 		const entry = makeEntry({ files: [], verified: null });
 		const [result] = verifyEntries([entry], tmpDir);
 
-		expect(result!.verified!.filesModified).toBe(false);
+		expect(result?.verified?.filesModified).toBe(false);
 	});
 
 	// -------------------------------------------------------------------------
@@ -283,9 +283,9 @@ describe("verifyEntries", () => {
 		const [result] = verifyEntries([entry], tmpDir);
 		const after = new Date().toISOString();
 
-		expect(result!.verified!.lastChecked).toBeDefined();
-		expect(result!.verified!.lastChecked >= before).toBe(true);
-		expect(result!.verified!.lastChecked <= after).toBe(true);
+		expect(result?.verified?.lastChecked).toBeDefined();
+		expect(result?.verified?.lastChecked >= before).toBe(true);
+		expect(result?.verified?.lastChecked <= after).toBe(true);
 	});
 
 	// -------------------------------------------------------------------------

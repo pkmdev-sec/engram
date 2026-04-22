@@ -13,10 +13,7 @@ function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function entryWasUsed(
-	entry: KnowledgeEntry,
-	responses: readonly string[],
-): boolean {
+function entryWasUsed(entry: KnowledgeEntry, responses: readonly string[]): boolean {
 	const lowerResponses = responses.map((r) => r.toLowerCase());
 
 	// File match: case-insensitive substring — any file in any response.
@@ -65,11 +62,7 @@ export function trackFeedback(
 					config.minFeedbackScore,
 					config.maxFeedbackScore,
 				)
-			: clamp(
-					entry.feedbackScore - penalty,
-					config.minFeedbackScore,
-					config.maxFeedbackScore,
-				);
+			: clamp(entry.feedbackScore - penalty, config.minFeedbackScore, config.maxFeedbackScore);
 
 		if (newScore !== entry.feedbackScore) {
 			changed.set(entry.id, newScore);

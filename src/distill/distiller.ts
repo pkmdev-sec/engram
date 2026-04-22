@@ -5,13 +5,13 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
+import { callAnthropic } from "../api/anthropic.js";
 import type {
 	DistillationConfig,
 	KnowledgeEntry,
 	RawDistillerEntry,
 	SessionTranscript,
 } from "../types.js";
-import { callAnthropic } from "../api/anthropic.js";
 import { buildDistillationPrompt } from "./prompt.js";
 import { validateDistillerOutput } from "./validator.js";
 

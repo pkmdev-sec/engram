@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { validateDistillerOutput } from "../../src/distill/validator.js";
 import type { KnowledgeEntry, RawDistillerEntry } from "../../src/types.js";
 
@@ -83,7 +83,7 @@ describe("validateDistillerOutput", () => {
 	it("rejects entry with missing category", () => {
 		const entry = makeEntry();
 		// biome-ignore lint/suspicious/noExplicitAny: deliberately constructing invalid input
-		delete (entry as any).category;
+		(entry as any).category = undefined;
 
 		const result = validateDistillerOutput([entry], []);
 
@@ -197,8 +197,7 @@ describe("validateDistillerOutput", () => {
 
 	it("rejects near-duplicate of existing entry", () => {
 		// Identical summary text → Jaccard similarity = 1.0, well above the 0.65 threshold.
-		const sharedSummary =
-			"The storage layer separates read and write models completely.";
+		const sharedSummary = "The storage layer separates read and write models completely.";
 
 		const existing = makeKnowledgeEntry({ summary: sharedSummary });
 

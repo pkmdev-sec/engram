@@ -12,10 +12,7 @@ import type { BrainIndex, KnowledgeEntry } from "../types.js";
  *
  * Topics are lowercased at index time so that queries don't need exact case.
  */
-export function buildIndex(
-	entries: readonly KnowledgeEntry[],
-	projectId: string,
-): BrainIndex {
+export function buildIndex(entries: readonly KnowledgeEntry[], projectId: string): BrainIndex {
 	const byTopic: Record<string, string[]> = {};
 	const byFile: Record<string, string[]> = {};
 	const byCategory: Record<string, string[]> = {};
@@ -75,7 +72,7 @@ export function queryIndex(
 		// src/auth) to avoid overly broad matches from top-level dirs like src/.
 		const queryDir = path.dirname(file);
 		if (queryDir && queryDir !== "." && queryDir.includes("/")) {
-			const prefix = queryDir + "/";
+			const prefix = `${queryDir}/`;
 			for (const indexedPath of Object.keys(index.byFile)) {
 				if (indexedPath === file) continue;
 				if (indexedPath.startsWith(prefix)) {

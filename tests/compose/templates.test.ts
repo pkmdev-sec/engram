@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { composeSessionStart, composeDriftContext } from "../../src/compose/templates.js";
-import type { RankedEntry, KnowledgeEntry } from "../../src/types.js";
+import { describe, expect, it } from "vitest";
+import { composeDriftContext, composeSessionStart } from "../../src/compose/templates.js";
+import type { KnowledgeEntry, RankedEntry } from "../../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,9 +59,7 @@ describe("composeSessionStart", () => {
 	});
 
 	it("only sections with entries are rendered — empty sections omitted", () => {
-		const entries = [
-			makeRanked({ category: "architecture", summary: "Layered approach" }),
-		];
+		const entries = [makeRanked({ category: "architecture", summary: "Layered approach" })];
 		const result = composeSessionStart(entries, TIMESTAMP);
 
 		expect(result).toContain("### Architecture");
@@ -111,14 +109,18 @@ describe("composeSessionStart", () => {
 
 	it("each entry line starts with '- '", () => {
 		const entries = [
-			makeRanked({ category: "architecture", summary: "Module boundaries", reasoning: "Clean isolation" }),
+			makeRanked({
+				category: "architecture",
+				summary: "Module boundaries",
+				reasoning: "Clean isolation",
+			}),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
 
 		const lines = result.split("\n");
 		const entryLine = lines.find((l) => l.includes("Module boundaries"));
 		expect(entryLine).toBeDefined();
-		expect(entryLine!.startsWith("- ")).toBe(true);
+		expect(entryLine?.startsWith("- ")).toBe(true);
 	});
 
 	it("informational entries contain summary only — reasoning not injected", () => {
@@ -164,7 +166,8 @@ describe("composeSessionStart", () => {
 			makeRanked({
 				category: "failed-approach",
 				summary: "Do not mock Prisma",
-				reasoning: "The mock diverges from real behavior. Additionally the setup takes longer than using a real test DB and produces flaky failures on CI.",
+				reasoning:
+					"The mock diverges from real behavior. Additionally the setup takes longer than using a real test DB and produces flaky failures on CI.",
 			}),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
@@ -273,9 +276,21 @@ describe("composeSessionStart", () => {
 
 	it("multiple entries in same section render as separate bullet lines", () => {
 		const entries = [
-			makeRanked({ category: "pattern", summary: "Factory pattern", reasoning: "Decouples creation" }),
-			makeRanked({ category: "pattern", summary: "Observer pattern", reasoning: "Event-driven flow" }),
-			makeRanked({ category: "pattern", summary: "Strategy pattern", reasoning: "Algorithm swapping" }),
+			makeRanked({
+				category: "pattern",
+				summary: "Factory pattern",
+				reasoning: "Decouples creation",
+			}),
+			makeRanked({
+				category: "pattern",
+				summary: "Observer pattern",
+				reasoning: "Event-driven flow",
+			}),
+			makeRanked({
+				category: "pattern",
+				summary: "Strategy pattern",
+				reasoning: "Algorithm swapping",
+			}),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
 
@@ -320,18 +335,25 @@ describe("composeSessionStart", () => {
 
 	it("non-stale entries do NOT get [stale] suffix", () => {
 		const entries = [
-			makeRanked({ category: "dependency", summary: "Uses React", reasoning: "UI framework" }, { isStale: false }),
+			makeRanked(
+				{ category: "dependency", summary: "Uses React", reasoning: "UI framework" },
+				{ isStale: false },
+			),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
 		// The disclaimer prose contains '[stale]' in it, so check only the entry line.
-		const entryLine = result.split('\n').find((l) => l.includes('Uses React'));
+		const entryLine = result.split("\n").find((l) => l.includes("Uses React"));
 		expect(entryLine).toBeDefined();
 		expect(entryLine!).not.toContain("[stale]");
 	});
 
 	it("non-global entries do NOT get (global) prefix", () => {
 		const entries = [
-			makeRanked({ category: "dependency", summary: "Local only dep", reasoning: "Project-scoped" }),
+			makeRanked({
+				category: "dependency",
+				summary: "Local only dep",
+				reasoning: "Project-scoped",
+			}),
 		];
 		const result = composeSessionStart(entries, TIMESTAMP);
 		const lines = result.split("\n");
@@ -372,8 +394,16 @@ describe("composeDriftContext", () => {
 
 	it("each entry is a '- ' prefixed line", () => {
 		const entries = [
-			makeRanked({ category: "architecture", summary: "Caching strategy", reasoning: "Perf improvement" }),
-			makeRanked({ category: "gotcha", summary: "Null check required", reasoning: "Defensive coding" }),
+			makeRanked({
+				category: "architecture",
+				summary: "Caching strategy",
+				reasoning: "Perf improvement",
+			}),
+			makeRanked({
+				category: "gotcha",
+				summary: "Null check required",
+				reasoning: "Defensive coding",
+			}),
 		];
 		const result = composeDriftContext(entries);
 		const lines = result.split("\n");

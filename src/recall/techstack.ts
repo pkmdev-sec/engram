@@ -42,10 +42,7 @@ export function detectTechStack(projectDir: string, cacheDir: string): TechStack
  *   0.5  — no topics match at all
  *   0.5–1.0 — proportional to the fraction of topics that match
  */
-export function techRelevance(
-	entryTopics: readonly string[],
-	stack: TechStack,
-): number {
+export function techRelevance(entryTopics: readonly string[], stack: TechStack): number {
 	if (entryTopics.length === 0) return 1.0;
 	const stackTerms = new Set([...stack.languages, ...stack.packages].map((s) => s.toLowerCase()));
 	if (stackTerms.size === 0) return 1.0;
@@ -105,7 +102,9 @@ function parsePackageJson(p: string, langs: Set<string>, pkgs: Set<string>): voi
 		if (pkg.devDependencies?.typescript || pkg.dependencies?.typescript) langs.add("typescript");
 		for (const name of Object.keys(pkg.dependencies ?? {})) pkgs.add(name);
 		for (const name of Object.keys(pkg.devDependencies ?? {})) pkgs.add(name);
-	} catch { /* malformed */ }
+	} catch {
+		/* malformed */
+	}
 }
 
 function parseCargoToml(p: string, langs: Set<string>, pkgs: Set<string>): void {
@@ -117,7 +116,9 @@ function parseCargoToml(p: string, langs: Set<string>, pkgs: Set<string>): void 
 		if (depSection) {
 			for (const m of depSection[1].matchAll(/^([a-zA-Z0-9_-]+)\s*=/gm)) pkgs.add(m[1]);
 		}
-	} catch { /* malformed */ }
+	} catch {
+		/* malformed */
+	}
 }
 
 function parseGoMod(p: string, langs: Set<string>, pkgs: Set<string>): void {
@@ -129,7 +130,9 @@ function parseGoMod(p: string, langs: Set<string>, pkgs: Set<string>): void {
 			const parts = m[1].split("/");
 			pkgs.add(parts[parts.length - 1]);
 		}
-	} catch { /* malformed */ }
+	} catch {
+		/* malformed */
+	}
 }
 
 function parsePyprojectToml(p: string, langs: Set<string>, pkgs: Set<string>): void {
@@ -141,7 +144,9 @@ function parsePyprojectToml(p: string, langs: Set<string>, pkgs: Set<string>): v
 		if (deps) {
 			for (const m of deps[1].matchAll(/"([a-zA-Z0-9_-]+)/g)) pkgs.add(m[1].toLowerCase());
 		}
-	} catch { /* malformed */ }
+	} catch {
+		/* malformed */
+	}
 }
 
 function parseRequirementsTxt(p: string, langs: Set<string>, pkgs: Set<string>): void {
@@ -154,16 +159,25 @@ function parseRequirementsTxt(p: string, langs: Set<string>, pkgs: Set<string>):
 			if (m) pkgs.add(m[1].toLowerCase());
 		}
 		langs.add("python");
-	} catch { /* malformed */ }
+	} catch {
+		/* malformed */
+	}
 }
 
 function scanExtensions(projectDir: string, langs: Set<string>): void {
 	const extMap: Record<string, string> = {
-		".ts": "typescript", ".tsx": "typescript",
-		".js": "javascript", ".jsx": "javascript",
-		".py": "python", ".rs": "rust", ".go": "go",
-		".swift": "swift", ".java": "java", ".kt": "kotlin",
-		".rb": "ruby", ".php": "php",
+		".ts": "typescript",
+		".tsx": "typescript",
+		".js": "javascript",
+		".jsx": "javascript",
+		".py": "python",
+		".rs": "rust",
+		".go": "go",
+		".swift": "swift",
+		".java": "java",
+		".kt": "kotlin",
+		".rb": "ruby",
+		".php": "php",
 	};
 	const dirs = [projectDir];
 	const srcDir = join(projectDir, "src");
@@ -177,6 +191,8 @@ function scanExtensions(projectDir: string, langs: Set<string>): void {
 				const ext = name.slice(name.lastIndexOf("."));
 				if (ext in extMap) langs.add(extMap[ext]);
 			}
-		} catch { /* permission denied */ }
+		} catch {
+			/* permission denied */
+		}
 	}
 }

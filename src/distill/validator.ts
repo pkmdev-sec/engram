@@ -37,7 +37,6 @@ const HEDGING_PATTERNS: readonly RegExp[] = [
 	/\bcould be\b/i,
 ];
 
-
 /** Maximum number of entries the distiller is allowed to produce in one pass. */
 const MAX_ENTRIES = 10;
 
@@ -239,8 +238,6 @@ function hasNumberField(record: Record<string, unknown>, key: string): boolean {
 
 function hasStringArrayField(record: Record<string, unknown>, key: string): boolean {
 	return (
-		Array.isArray(record[key]) &&
-		(record[key] as unknown[]).every((el) => typeof el === "string")
+		Array.isArray(record[key]) && (record[key] as unknown[]).every((el) => typeof el === "string")
 	);
 }
-

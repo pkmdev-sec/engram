@@ -1,14 +1,14 @@
-import * as crypto from "crypto";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+	type PendingEntry,
 	loadPendingEntries,
 	promoteQuarantinedEntries,
 	scanForCrossProjectKnowledge,
-	type PendingEntry,
 } from "../../src/store/auto-promoter.js";
 import type { KnowledgeEntry } from "../../src/types.js";
 
@@ -51,19 +51,16 @@ function makeEntry(overrides: Partial<KnowledgeEntry> & { id: string }): Knowled
 function writeBrain(projectsDir: string, projectId: string, entries: KnowledgeEntry[]): void {
 	const dir = path.join(projectsDir, projectId);
 	fs.mkdirSync(dir, { recursive: true });
-	const content = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
+	const content = `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`;
 	fs.writeFileSync(path.join(dir, "brain.jsonl"), content, "utf-8");
 }
 
 /** Write meta.json for a project, pointing to a fake src dir, and configure its git remote. */
 function writeMeta(projectsDir: string, projectId: string, remote: string): void {
 	const projDir = path.join(projectsDir, projectId);
-	const fakeProjectDir = path.join(projectsDir, projectId + "-src");
+	const fakeProjectDir = path.join(projectsDir, `${projectId}-src`);
 	fs.mkdirSync(fakeProjectDir, { recursive: true });
-	fs.writeFileSync(
-		path.join(projDir, "meta.json"),
-		JSON.stringify({ projectDir: fakeProjectDir }),
-	);
+	fs.writeFileSync(path.join(projDir, "meta.json"), JSON.stringify({ projectDir: fakeProjectDir }));
 }
 
 function daysAgo(days: number): string {
@@ -73,7 +70,7 @@ function daysAgo(days: number): string {
 // ---------------------------------------------------------------------------
 // Setup: create isolated ~/.engram mock using TMPDIR override via homedir mock
 // ---------------------------------------------------------------------------
-// 
+//
 // scanForCrossProjectKnowledge internally calls homedir() to resolve
 // ~/.engram/projects and ~/.engram/global. We intercept by mocking
 // node:os in the auto-promoter module. Since vi.mock is hoisted, we set
@@ -152,9 +149,7 @@ describe("scanForCrossProjectKnowledge — basic cases", () => {
 
 		// Create 3 other projects with matching knowledge
 		for (let i = 0; i < 3; i++) {
-			writeBrain(projectsDir, `other-${i}`, [
-				makeEntry({ id: `match-${i}`, summary }),
-			]);
+			writeBrain(projectsDir, `other-${i}`, [makeEntry({ id: `match-${i}`, summary })]);
 		}
 
 		const result = scanForCrossProjectKnowledge([pref], "current", tmpDir);
@@ -278,7 +273,7 @@ describe("scanForCrossProjectKnowledge — independence check", () => {
 		// Write meta.json pointing to a dir for each other project so getGitRemote is called
 		for (const projId of ["proj-same-remote-1", "proj-same-remote-2"]) {
 			const projDir = path.join(projectsDir, projId);
-			const fakeProjectDir = path.join(tmpDir, projId + "-src");
+			const fakeProjectDir = path.join(tmpDir, `${projId}-src`);
 			fs.mkdirSync(fakeProjectDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(projDir, "meta.json"),
@@ -301,7 +296,7 @@ describe("scanForCrossProjectKnowledge — independence check", () => {
 
 		for (let i = 0; i < 2; i++) {
 			const projId = `independent-proj-${i}`;
-			const fakeProjectDir = path.join(tmpDir, projId + "-src");
+			const fakeProjectDir = path.join(tmpDir, `${projId}-src`);
 			fs.mkdirSync(fakeProjectDir, { recursive: true });
 			writeBrain(projectsDir, projId, [makeEntry({ id: `m${i}`, summary })]);
 			fs.writeFileSync(
@@ -354,15 +349,18 @@ describe("scanForCrossProjectKnowledge — word overlap", () => {
 		});
 
 		// Other projects have completely different knowledge
-		writeBrain(projectsDir, "proj-a", [makeEntry({ id: "a", summary: "use rust for performance critical code" })]);
-		writeBrain(projectsDir, "proj-b", [makeEntry({ id: "b", summary: "deploy using kubernetes for orchestration" })]);
+		writeBrain(projectsDir, "proj-a", [
+			makeEntry({ id: "a", summary: "use rust for performance critical code" }),
+		]);
+		writeBrain(projectsDir, "proj-b", [
+			makeEntry({ id: "b", summary: "deploy using kubernetes for orchestration" }),
+		]);
 
 		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
 
 		expect(result.quarantined).toBe(0);
 	});
 });
-
 
 describe("scanForCrossProjectKnowledge — null remote independence", () => {
 	it("does not quarantine when all projects have null git remotes (non-git dirs are not independent)", () => {
@@ -394,7 +392,7 @@ describe("scanForCrossProjectKnowledge — deduplication", () => {
 		// Two independent projects with different remotes
 		for (let i = 0; i < 2; i++) {
 			const projId = `dedup-proj-${i}`;
-			const fakeProjectDir = path.join(tmpDir, projId + "-src");
+			const fakeProjectDir = path.join(tmpDir, `${projId}-src`);
 			fs.mkdirSync(fakeProjectDir, { recursive: true });
 			writeBrain(projectsDir, projId, [makeEntry({ id: `dm${i}`, summary })]);
 			fs.writeFileSync(
@@ -446,7 +444,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -467,7 +465,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -485,7 +483,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -506,7 +504,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -527,7 +525,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -549,7 +547,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -576,7 +574,7 @@ describe("promoteQuarantinedEntries", () => {
 		const pendingPath = path.join(globalDir, "pending.jsonl");
 		fs.writeFileSync(
 			pendingPath,
-			JSON.stringify(readyPending) + "\n" + JSON.stringify(notReadyPending) + "\n",
+			`${JSON.stringify(readyPending)}\n${JSON.stringify(notReadyPending)}\n`,
 			"utf-8",
 		);
 
@@ -585,11 +583,7 @@ describe("promoteQuarantinedEntries", () => {
 		expect(count).toBe(1);
 
 		// not-ready should still be in pending
-		const remainingLines = fs
-			.readFileSync(pendingPath, "utf-8")
-			.trim()
-			.split("\n")
-			.filter(Boolean);
+		const remainingLines = fs.readFileSync(pendingPath, "utf-8").trim().split("\n").filter(Boolean);
 		expect(remainingLines).toHaveLength(1);
 		const remaining = JSON.parse(remainingLines[0]!) as PendingEntry;
 		expect(remaining.entry.id).toBe("not-ready");
@@ -604,7 +598,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -623,7 +617,7 @@ describe("promoteQuarantinedEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pending) + "\n",
+			`${JSON.stringify(pending)}\n`,
 			"utf-8",
 		);
 
@@ -661,15 +655,15 @@ describe("loadPendingEntries", () => {
 
 		fs.writeFileSync(
 			path.join(globalDir, "pending.jsonl"),
-			JSON.stringify(pendingA) + "\n" + JSON.stringify(pendingB) + "\n",
+			`${JSON.stringify(pendingA)}\n${JSON.stringify(pendingB)}\n`,
 			"utf-8",
 		);
 
 		const entries = loadPendingEntries(globalDir);
 
 		expect(entries).toHaveLength(2);
-		expect(entries[0]!.entry.id).toBe("a");
-		expect(entries[1]!.entry.id).toBe("b");
+		expect(entries[0]?.entry.id).toBe("a");
+		expect(entries[1]?.entry.id).toBe("b");
 	});
 
 	it("skips malformed lines without throwing", () => {

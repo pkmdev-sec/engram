@@ -94,9 +94,13 @@ export function parseClaudeSessionContent(
 						if (typeof text === "string") textParts.push(text);
 					} else if (b.type === "tool_use") {
 						extractToolActivity(
-							b, projectPath ?? "",
-							filesRead, filesEdited, filesCreated,
-							searchPatterns, shellCommands,
+							b,
+							projectPath ?? "",
+							filesRead,
+							filesEdited,
+							filesCreated,
+							searchPatterns,
+							shellCommands,
 						);
 					}
 				}

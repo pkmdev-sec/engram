@@ -11,8 +11,8 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
-import type { CompactionConfig, InjectionConfig, KnowledgeEntry } from "../types.js";
 import { callAnthropic } from "../api/anthropic.js";
+import type { CompactionConfig, InjectionConfig, KnowledgeEntry } from "../types.js";
 import { isValidEntry } from "./brain-store.js";
 
 interface CompactionResult {
@@ -110,11 +110,7 @@ function deterministicPrune(
 		const parsedTs = Date.parse(entry.timestamp);
 		const ageInDays = Number.isNaN(parsedTs) ? 0 : (now - parsedTs) / 86_400_000;
 		const decayFactor =
-			ageInDays > 90
-				? config.decayDays90
-				: ageInDays > 30
-					? config.decayDays30
-					: 1.0;
+			ageInDays > 90 ? config.decayDays90 : ageInDays > 30 ? config.decayDays30 : 1.0;
 		const effectiveImportance = entry.importance * decayFactor;
 		if (effectiveImportance < 0.3) return false;
 
@@ -204,8 +200,7 @@ ${entriesJson}`;
 				const merged = {
 					...original,
 					summary: typeof record.summary === "string" ? record.summary : original.summary,
-					reasoning:
-						typeof record.reasoning === "string" ? record.reasoning : original.reasoning,
+					reasoning: typeof record.reasoning === "string" ? record.reasoning : original.reasoning,
 					importance:
 						typeof record.importance === "number" ? record.importance : original.importance,
 				};

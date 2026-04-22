@@ -1,10 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { rankEntries } from "../../src/recall/ranker.js";
-import {
-	DEFAULT_CONFIG,
-	type KnowledgeEntry,
-	type RankedEntry,
-} from "../../src/types.js";
+import { DEFAULT_CONFIG, type KnowledgeEntry, type RankedEntry } from "../../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,12 +32,14 @@ export function makeEntry(overrides: Partial<KnowledgeEntry> = {}): KnowledgeEnt
 	};
 }
 
-export function makeRankedEntry(overrides: {
-	entry?: Partial<KnowledgeEntry>;
-	score?: number;
-	isStale?: boolean;
-	filesExist?: boolean;
-} = {}): RankedEntry {
+export function makeRankedEntry(
+	overrides: {
+		entry?: Partial<KnowledgeEntry>;
+		score?: number;
+		isStale?: boolean;
+		filesExist?: boolean;
+	} = {},
+): RankedEntry {
 	return {
 		entry: makeEntry(overrides.entry),
 		score: overrides.score ?? 0.5,
@@ -83,12 +81,7 @@ describe("rankEntries", () => {
 			topics: ["legacy"],
 		});
 
-		const ranked = rankEntries(
-			[lowValue, highValue],
-			["src/core.ts"],
-			["core"],
-			cfg,
-		);
+		const ranked = rankEntries([lowValue, highValue], ["src/core.ts"], ["core"], cfg);
 
 		expect(ranked).toHaveLength(2);
 		expect(ranked[0].entry.id).toBe(highValue.id);
@@ -157,12 +150,7 @@ describe("rankEntries", () => {
 		});
 
 		// Query mentions both files → matching gets fileOverlap = 1.0; noMatch gets 0.
-		const ranked = rankEntries(
-			[noMatch, matching],
-			["src/auth.ts", "src/token.ts"],
-			[],
-			cfg,
-		);
+		const ranked = rankEntries([noMatch, matching], ["src/auth.ts", "src/token.ts"], [], cfg);
 
 		expect(ranked).toHaveLength(2);
 		expect(ranked[0].entry.id).toBe(matching.id);
@@ -181,9 +169,9 @@ describe("rankEntries", () => {
 		const ranked = rankEntries([stale, clean, unverified], [], [], cfg);
 		const byId = new Map(ranked.map((r) => [r.entry.id, r]));
 
-		expect(byId.get(stale.id)!.isStale).toBe(true);
-		expect(byId.get(clean.id)!.isStale).toBe(false);
-		expect(byId.get(unverified.id)!.isStale).toBe(false);
+		expect(byId.get(stale.id)?.isStale).toBe(true);
+		expect(byId.get(clean.id)?.isStale).toBe(false);
+		expect(byId.get(unverified.id)?.isStale).toBe(false);
 	});
 
 	it("applies 30-day decay factor", () => {

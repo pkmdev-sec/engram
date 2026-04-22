@@ -1,4 +1,4 @@
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { buildIndex, queryIndex } from "../../src/store/indexer.js";
@@ -44,11 +44,11 @@ describe("buildIndex", () => {
 
 		const index = buildIndex([e1, e2, e3], "proj");
 
-		expect(index.byTopic["auth"]).toEqual(expect.arrayContaining(["e1", "e2"]));
-		expect(index.byTopic["auth"]).toHaveLength(2);
-		expect(index.byTopic["jwt"]).toEqual(["e1"]);
-		expect(index.byTopic["oauth"]).toEqual(["e2"]);
-		expect(index.byTopic["database"]).toEqual(["e3"]);
+		expect(index.byTopic.auth).toEqual(expect.arrayContaining(["e1", "e2"]));
+		expect(index.byTopic.auth).toHaveLength(2);
+		expect(index.byTopic.jwt).toEqual(["e1"]);
+		expect(index.byTopic.oauth).toEqual(["e2"]);
+		expect(index.byTopic.database).toEqual(["e3"]);
 	});
 
 	it("creates correct file index", () => {
@@ -71,9 +71,9 @@ describe("buildIndex", () => {
 
 		const index = buildIndex([e1, e2, e3], "proj");
 
-		expect(index.byCategory["constraint"]).toEqual(expect.arrayContaining(["e1", "e2"]));
-		expect(index.byCategory["constraint"]).toHaveLength(2);
-		expect(index.byCategory["architecture"]).toEqual(["e3"]);
+		expect(index.byCategory.constraint).toEqual(expect.arrayContaining(["e1", "e2"]));
+		expect(index.byCategory.constraint).toHaveLength(2);
+		expect(index.byCategory.architecture).toEqual(["e3"]);
 	});
 
 	it("sets projectId, entryCount, and a non-empty lastUpdated", () => {

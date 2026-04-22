@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { detectTechStack, techRelevance, type TechStack } from "../../src/recall/techstack.js";
+import { type TechStack, detectTechStack, techRelevance } from "../../src/recall/techstack.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -138,10 +138,7 @@ describe("detectTechStack", () => {
 	// -------------------------------------------------------------------------
 
 	it("detects go from go.mod", () => {
-		fs.writeFileSync(
-			path.join(projectDir, "go.mod"),
-			`module example.com/myapp\n\ngo 1.21\n`,
-		);
+		fs.writeFileSync(path.join(projectDir, "go.mod"), "module example.com/myapp\n\ngo 1.21\n");
 
 		const stack = detectTechStack(projectDir, cacheDir);
 
@@ -151,7 +148,7 @@ describe("detectTechStack", () => {
 	it("detects packages from go.mod require block", () => {
 		fs.writeFileSync(
 			path.join(projectDir, "go.mod"),
-			`module example.com/myapp\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.0\n\tgolang.org/x/net v0.15.0\n)\n`,
+			"module example.com/myapp\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.0\n\tgolang.org/x/net v0.15.0\n)\n",
 		);
 
 		const stack = detectTechStack(projectDir, cacheDir);
@@ -192,7 +189,7 @@ describe("detectTechStack", () => {
 	it("detects python from requirements.txt", () => {
 		fs.writeFileSync(
 			path.join(projectDir, "requirements.txt"),
-			`requests==2.28.0\nflask>=2.0\n# comment line\n-r base.txt\nnumpy\n`,
+			"requests==2.28.0\nflask>=2.0\n# comment line\n-r base.txt\nnumpy\n",
 		);
 
 		const stack = detectTechStack(projectDir, cacheDir);
@@ -203,7 +200,7 @@ describe("detectTechStack", () => {
 	it("detects packages from requirements.txt (skipping comments and flags)", () => {
 		fs.writeFileSync(
 			path.join(projectDir, "requirements.txt"),
-			`requests==2.28.0\nflask>=2.0\n# this is a comment\n-r base.txt\nnumpy\n`,
+			"requests==2.28.0\nflask>=2.0\n# this is a comment\n-r base.txt\nnumpy\n",
 		);
 
 		const stack = detectTechStack(projectDir, cacheDir);

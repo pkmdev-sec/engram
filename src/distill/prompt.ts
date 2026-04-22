@@ -182,16 +182,12 @@ Extract knowledge entries following the instructions in the system prompt. Retur
 function formatToolActivity(activity: ToolActivity | undefined): string {
 	if (!activity) return "";
 	const lines: string[] = [];
-	if (activity.filesRead.length > 0)
-		lines.push(`Read: ${activity.filesRead.join(", ")}`);
-	if (activity.filesEdited.length > 0)
-		lines.push(`Edited: ${activity.filesEdited.join(", ")}`);
-	if (activity.filesCreated.length > 0)
-		lines.push(`Created: ${activity.filesCreated.join(", ")}`);
+	if (activity.filesRead.length > 0) lines.push(`Read: ${activity.filesRead.join(", ")}`);
+	if (activity.filesEdited.length > 0) lines.push(`Edited: ${activity.filesEdited.join(", ")}`);
+	if (activity.filesCreated.length > 0) lines.push(`Created: ${activity.filesCreated.join(", ")}`);
 	if (activity.searchPatterns.length > 0)
 		lines.push(`Searches: ${activity.searchPatterns.map((p) => `"${p}"`).join(", ")}`);
-	if (activity.shellCommands.length > 0)
-		lines.push(`Shell: ${activity.shellCommands.join("; ")}`);
+	if (activity.shellCommands.length > 0) lines.push(`Shell: ${activity.shellCommands.join("; ")}`);
 	if (lines.length === 0) return "";
 	return `\n## Files Touched in This Session\n${lines.join("\n")}\n`;
 }

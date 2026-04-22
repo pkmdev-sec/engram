@@ -5,16 +5,88 @@ import { intersectionSize } from "../util/text.js";
 // Keeping this list narrow — overly broad stop-word lists suppress legitimate
 // technical terms (e.g. "type", "this" is intentionally kept short).
 const STOP_WORDS = new Set([
-	"the", "and", "but", "for", "with", "this", "that", "from",
-	"have", "will", "been", "are", "was", "were", "they", "them",
-	"then", "than", "when", "what", "where", "which", "also", "into",
-	"some", "more", "just", "like", "would", "could", "should", "does",
-	"your", "their", "there", "here", "each", "such", "only", "over",
-	"after", "about", "before", "these", "those", "both", "very",
-	"make", "made", "being", "using", "used", "need", "needs",
-	"not", "has", "had", "can", "any", "its", "you", "all", "one",
-	"new", "now", "way", "may", "got", "get", "let", "put", "set",
-	"try", "run", "use", "yet", "how", "why", "who", "our", "own", "too",
+	"the",
+	"and",
+	"but",
+	"for",
+	"with",
+	"this",
+	"that",
+	"from",
+	"have",
+	"will",
+	"been",
+	"are",
+	"was",
+	"were",
+	"they",
+	"them",
+	"then",
+	"than",
+	"when",
+	"what",
+	"where",
+	"which",
+	"also",
+	"into",
+	"some",
+	"more",
+	"just",
+	"like",
+	"would",
+	"could",
+	"should",
+	"does",
+	"your",
+	"their",
+	"there",
+	"here",
+	"each",
+	"such",
+	"only",
+	"over",
+	"after",
+	"about",
+	"before",
+	"these",
+	"those",
+	"both",
+	"very",
+	"make",
+	"made",
+	"being",
+	"using",
+	"used",
+	"need",
+	"needs",
+	"not",
+	"has",
+	"had",
+	"can",
+	"any",
+	"its",
+	"you",
+	"all",
+	"one",
+	"new",
+	"now",
+	"way",
+	"may",
+	"got",
+	"get",
+	"let",
+	"put",
+	"set",
+	"try",
+	"run",
+	"use",
+	"yet",
+	"how",
+	"why",
+	"who",
+	"our",
+	"own",
+	"too",
 ]);
 
 /**
@@ -82,7 +154,6 @@ function extractTopics(message: string): string[] {
 	return result;
 }
 
-
 export interface DriftResult {
 	readonly drifted: boolean;
 	readonly newFiles: string[];
@@ -99,10 +170,7 @@ export interface DriftResult {
  * - A message with no extractable signal (pure prose) → no drift (avoid noise).
  * - A message that clearly moves into new territory → drift (re-inject).
  */
-export function detectDrift(
-	userMessage: string,
-	injectionState: InjectionState,
-): DriftResult {
+export function detectDrift(userMessage: string, injectionState: InjectionState): DriftResult {
 	const extractedFiles = extractFiles(userMessage);
 	const extractedTopics = extractTopics(userMessage);
 

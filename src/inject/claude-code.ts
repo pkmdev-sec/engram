@@ -36,10 +36,7 @@ export function injectSessionStart(projectDir: string, brainContent: string): vo
 		// end-marker (inclusive). This handles any variation in the text that
 		// follows BEGIN:engram on the same line (e.g. the auto-managed note).
 		const endOfEndMarker = endIdx + END_MARKER.length;
-		const updated =
-			existing.slice(0, beginIdx) +
-			brainContent +
-			existing.slice(endOfEndMarker);
+		const updated = existing.slice(0, beginIdx) + brainContent + existing.slice(endOfEndMarker);
 		fs.writeFileSync(claudeMdPath, updated, "utf8");
 	} else {
 		// No markers present — append to the existing file.

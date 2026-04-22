@@ -1,7 +1,7 @@
-import * as crypto from "crypto";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { compact } from "../../src/store/compactor.js";
@@ -119,7 +119,12 @@ describe("deterministicPrune — expired entries", () => {
 		const expired = makeEntry({ id: "expired", expiresAt: daysAgo(1) });
 		const live = makeEntry({ id: "live", expiresAt: null });
 
-		const result = await compact([expired, live], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[expired, live],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).not.toContain("expired");
 		expect(result.entries.map((e) => e.id)).toContain("live");
@@ -151,7 +156,12 @@ describe("deterministicPrune — importance decay", () => {
 			timestamp: daysAgo(91),
 		});
 
-		const result = await compact([decayed], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[decayed],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).not.toContain("decayed");
 		expect(result.pruned).toBe(1);
@@ -164,7 +174,12 @@ describe("deterministicPrune — importance decay", () => {
 			timestamp: daysAgo(91),
 		});
 
-		const result = await compact([survives], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[survives],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).toContain("survives");
 	});
@@ -176,7 +191,12 @@ describe("deterministicPrune — importance decay", () => {
 			timestamp: daysAgo(35),
 		});
 
-		const result = await compact([thirtyDay], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[thirtyDay],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).not.toContain("thirty-day");
 	});
@@ -202,7 +222,12 @@ describe("deterministicPrune — negative feedback", () => {
 	it("removes entries with feedbackScore < -0.2", async () => {
 		const negative = makeEntry({ id: "negative", feedbackScore: -0.25 });
 
-		const result = await compact([negative], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[negative],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).not.toContain("negative");
 		expect(result.pruned).toBe(1);
@@ -211,7 +236,12 @@ describe("deterministicPrune — negative feedback", () => {
 	it("keeps entries with feedbackScore exactly -0.2 (boundary is not < -0.2)", async () => {
 		const boundary = makeEntry({ id: "boundary", feedbackScore: -0.2 });
 
-		const result = await compact([boundary], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[boundary],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).toContain("boundary");
 	});
@@ -287,7 +317,12 @@ describe("deterministicPrune — dead file pruning", () => {
 	it("keeps pattern entries with empty files array (rule only fires when files.length > 0)", async () => {
 		const noFiles = makeEntry({ id: "no-files", category: "pattern", files: [] });
 
-		const result = await compact([noFiles], tmpDir, defaultCompactionConfig, defaultInjectionConfig);
+		const result = await compact(
+			[noFiles],
+			tmpDir,
+			defaultCompactionConfig,
+			defaultInjectionConfig,
+		);
 
 		expect(result.entries.map((e) => e.id)).toContain("no-files");
 	});
@@ -449,7 +484,9 @@ describe("LLM merge — fallback on bad response", () => {
 
 	it("falls back when LLM returns array with only unknown IDs (result would be empty)", async () => {
 		const entries = bulkHealthyEntries(16);
-		mockCallAnthropic.mockResolvedValueOnce(JSON.stringify([{ id: "bogus-id-1" }, { id: "bogus-id-2" }]));
+		mockCallAnthropic.mockResolvedValueOnce(
+			JSON.stringify([{ id: "bogus-id-1" }, { id: "bogus-id-2" }]),
+		);
 
 		const result = await compact(entries, tmpDir, defaultCompactionConfig, defaultInjectionConfig);
 
@@ -462,7 +499,7 @@ describe("LLM merge — markdown-fenced JSON", () => {
 	it("parses JSON wrapped in ```json fences", async () => {
 		const entries = bulkHealthyEntries(16);
 		const subset = entries.slice(0, 12);
-		const fenced = "```json\n" + llmPassthrough(subset) + "\n```";
+		const fenced = `\`\`\`json\n${llmPassthrough(subset)}\n\`\`\``;
 		mockCallAnthropic.mockResolvedValueOnce(fenced);
 
 		const result = await compact(entries, tmpDir, defaultCompactionConfig, defaultInjectionConfig);
@@ -473,7 +510,7 @@ describe("LLM merge — markdown-fenced JSON", () => {
 	it("parses JSON wrapped in plain ``` fences", async () => {
 		const entries = bulkHealthyEntries(16);
 		const subset = entries.slice(0, 14);
-		const fenced = "```\n" + llmPassthrough(subset) + "\n```";
+		const fenced = `\`\`\`\n${llmPassthrough(subset)}\n\`\`\``;
 		mockCallAnthropic.mockResolvedValueOnce(fenced);
 
 		const result = await compact(entries, tmpDir, defaultCompactionConfig, defaultInjectionConfig);

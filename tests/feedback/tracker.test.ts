@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { trackFeedback } from "../../src/feedback/tracker.js";
 import { DEFAULT_CONFIG, type KnowledgeEntry } from "../../src/types.js";
 
@@ -48,11 +48,7 @@ describe("trackFeedback", () => {
 			topics: [],
 		});
 
-		const changed = trackFeedback(
-			[entry],
-			["I edited src/auth/token.ts directly"],
-			cfg,
-		);
+		const changed = trackFeedback([entry], ["I edited src/auth/token.ts directly"], cfg);
 
 		expect(changed.has(entry.id)).toBe(true);
 		expect(changed.get(entry.id)).toBeCloseTo(0 + cfg.boostPerUse, 10);
@@ -67,11 +63,7 @@ describe("trackFeedback", () => {
 			topics: ["authentication"],
 		});
 
-		const changed = trackFeedback(
-			[entry],
-			["The authentication flow needs to be updated"],
-			cfg,
-		);
+		const changed = trackFeedback([entry], ["The authentication flow needs to be updated"], cfg);
 
 		expect(changed.has(entry.id)).toBe(true);
 		expect(changed.get(entry.id)).toBeCloseTo(0 + cfg.boostPerUse, 10);
@@ -136,11 +128,7 @@ describe("trackFeedback", () => {
 			topics: ["unmentioned"],
 		});
 
-		const changed = trackFeedback(
-			[entry],
-			["Completely unrelated response"],
-			cfg,
-		);
+		const changed = trackFeedback([entry], ["Completely unrelated response"], cfg);
 
 		expect(changed.get(entry.id)).toBeCloseTo(0 - cfg.penaltyPerIgnore * 0.5, 10);
 	});
@@ -153,11 +141,7 @@ describe("trackFeedback", () => {
 			topics: ["unmentioned"],
 		});
 
-		const changed = trackFeedback(
-			[entry],
-			["Completely unrelated response"],
-			cfg,
-		);
+		const changed = trackFeedback([entry], ["Completely unrelated response"], cfg);
 
 		expect(changed.get(entry.id)).toBeCloseTo(0 - cfg.penaltyPerIgnore * 0.5, 10);
 	});
@@ -170,11 +154,7 @@ describe("trackFeedback", () => {
 			topics: ["unmentioned"],
 		});
 
-		const changed = trackFeedback(
-			[entry],
-			["Completely unrelated response"],
-			cfg,
-		);
+		const changed = trackFeedback([entry], ["Completely unrelated response"], cfg);
 
 		expect(changed.get(entry.id)).toBeCloseTo(0 - cfg.penaltyPerIgnore, 10);
 	});

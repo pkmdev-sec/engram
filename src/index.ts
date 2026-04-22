@@ -15,26 +15,26 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 
-import type {
-	AgentConfig,
-	InjectionState,
-	KnowledgeEntry,
-} from "./types.js";
+import type { AgentConfig, InjectionState, KnowledgeEntry } from "./types.js";
 import { DEFAULT_CONFIG, POISONING_PATTERNS } from "./types.js";
 
-import { parseClaudeSession } from "./ingest/session-parser.js";
-import { distill } from "./distill/distiller.js";
-import { BrainStore } from "./store/brain-store.js";
-import { buildIndex, queryIndex } from "./store/indexer.js";
-import { compact } from "./store/compactor.js";
-import { verifyEntries } from "./recall/verifier.js";
-import { rankEntries, getRecentActivity, deriveTopicsFromFiles } from "./recall/ranker.js";
 import { compose } from "./compose/composer.js";
 import { detectDrift } from "./compose/drift-detector.js";
-import { injectSessionStart, injectDriftContext } from "./inject/claude-code.js";
+import { distill } from "./distill/distiller.js";
 import { trackFeedback } from "./feedback/tracker.js";
+import { parseClaudeSession } from "./ingest/session-parser.js";
+import { injectDriftContext, injectSessionStart } from "./inject/claude-code.js";
+import { deriveTopicsFromFiles, getRecentActivity, rankEntries } from "./recall/ranker.js";
 import { detectTechStack, techRelevance } from "./recall/techstack.js";
-import { scanForCrossProjectKnowledge, promoteQuarantinedEntries, loadPendingEntries } from "./store/auto-promoter.js";
+import { verifyEntries } from "./recall/verifier.js";
+import {
+	loadPendingEntries,
+	promoteQuarantinedEntries,
+	scanForCrossProjectKnowledge,
+} from "./store/auto-promoter.js";
+import { BrainStore } from "./store/brain-store.js";
+import { compact } from "./store/compactor.js";
+import { buildIndex, queryIndex } from "./store/indexer.js";
 
 /** Compute a stable project ID from the working directory path. */
 function projectIdFromPath(projectDir: string): string {
@@ -68,7 +68,6 @@ function loadConfig(): AgentConfig {
 	}
 }
 
-
 // -- Global Brain Helpers --
 
 const GLOBAL_BRAIN_PATH = path.join(homedir(), ".engram", "global");
@@ -97,7 +96,11 @@ function mergeGlobalEntries(
 	const multiplied = globalEntries.map((entry) => {
 		const catMultiplier = config.global.categoryMultipliers[entry.category] ?? 0.5;
 		const techMultiplier = techRelevance(entry.topics, stack);
-		return { ...entry, importance: entry.importance * catMultiplier * techMultiplier, crossProject: true };
+		return {
+			...entry,
+			importance: entry.importance * catMultiplier * techMultiplier,
+			crossProject: true,
+		};
 	});
 
 	// Sort by importance descending so the best global entries survive the budget cut
@@ -132,9 +135,7 @@ async function cmdDistill(args: string[]): Promise<void> {
 	const store = new BrainStore(projectId);
 	const existingEntries = store.loadEntries();
 
-	console.log(
-		`Distilling session ${transcript.id} (${transcript.messages.length} messages)...`,
-	);
+	console.log(`Distilling session ${transcript.id} (${transcript.messages.length} messages)...`);
 
 	const entries = await distill(transcript, config.distillation, existingEntries, projectId);
 
@@ -167,7 +168,9 @@ async function cmdDistill(args: string[]): Promise<void> {
 		}
 		const promoted = promoteQuarantinedEntries(GLOBAL_BRAIN_PATH);
 		if (promoted > 0) {
-			console.log(`  Global brain: ${promoted} quarantined entries promoted (7-day quarantine complete)`);
+			console.log(
+				`  Global brain: ${promoted} quarantined entries promoted (7-day quarantine complete)`,
+			);
 		}
 	}
 
@@ -177,12 +180,16 @@ async function cmdDistill(args: string[]): Promise<void> {
 		const testedEntries = allEntries.filter((e) => e.feedbackScore !== 0);
 		const testedRatio = testedEntries.length / allEntries.length;
 		if (testedRatio >= 0.3) {
-			console.log(`Auto-compacting brain (${allEntries.length} entries, ${(testedRatio * 100).toFixed(0)}% have feedback data)...`);
+			console.log(
+				`Auto-compacting brain (${allEntries.length} entries, ${(testedRatio * 100).toFixed(0)}% have feedback data)...`,
+			);
 			try {
 				const result = await compact(allEntries, projectDir, config.compaction, config.injection);
 				store.replaceEntries(result.entries);
 				store.saveIndex(buildIndex(result.entries, projectId));
-				console.log(`Compaction: ${result.before} → ${result.after} (pruned ${result.pruned}, merged ${result.merged})`);
+				console.log(
+					`Compaction: ${result.before} → ${result.after} (pruned ${result.pruned}, merged ${result.merged})`,
+				);
 			} catch (err) {
 				console.error(`Auto-compaction failed: ${err}`);
 			}
@@ -228,7 +235,11 @@ async function cmdInject(args: string[]): Promise<void> {
 		// Invalidate previous session's state AFTER dry-run guard —
 		// dry-run must not destroy state that drift detection depends on.
 		const statePath = injectionStatePath(projectId);
-		try { unlinkSync(statePath); } catch { /* may not exist */ }
+		try {
+			unlinkSync(statePath);
+		} catch {
+			/* may not exist */
+		}
 
 		injectSessionStart(projectDir, result.text);
 
@@ -261,12 +272,7 @@ async function cmdInject(args: string[]): Promise<void> {
 
 		const matchedEntries = entries.filter((e) => matchedIds.includes(e.id));
 		const verified = verifyEntries(matchedEntries, projectDir);
-		const ranked = rankEntries(
-			verified,
-			drift.newFiles,
-			drift.newTopics,
-			config.injection,
-		);
+		const ranked = rankEntries(verified, drift.newFiles, drift.newTopics, config.injection);
 		const result = compose(ranked, config.injection, "drift");
 
 		if (dryRun) {
@@ -308,7 +314,7 @@ function cmdShow(): void {
 		console.log(`    Why: ${entry.reasoning}`);
 		if (entry.files.length > 0) console.log(`    Files: ${entry.files.join(", ")}`);
 		if (entry.topics.length > 0) console.log(`    Topics: ${entry.topics.join(", ")}`);
-		if (entry.mayGeneralize) console.log(`    [may generalize across projects]`);
+		if (entry.mayGeneralize) console.log("    [may generalize across projects]");
 		console.log();
 	}
 }
@@ -337,7 +343,7 @@ function cmdStats(): void {
 		if (entry.verified?.filesModified) staleCount++;
 	}
 
-	console.log(`\nBy category:`);
+	console.log("\nBy category:");
 	for (const [cat, count] of Object.entries(byCat).sort((a, b) => b[1] - a[1])) {
 		console.log(`  ${cat}: ${count}`);
 	}
@@ -372,7 +378,7 @@ async function cmdCompact(): Promise<void> {
 	const index = buildIndex(result.entries, projectId);
 	store.saveIndex(index);
 
-	console.log(`Compaction complete:`);
+	console.log("Compaction complete:");
 	console.log(`  Before: ${result.before}`);
 	console.log(`  Pruned: ${result.pruned}`);
 	console.log(`  Merged: ${result.merged}`);
@@ -433,9 +439,10 @@ function cmdFeedback(args: string[]): void {
 		return entry && changes.get(entry.id)! > entry.feedbackScore;
 	}).length;
 
-	console.log(`Feedback updated: ${changes.size} entries (${boosted} boosted, ${changes.size - boosted} penalized)`);
+	console.log(
+		`Feedback updated: ${changes.size} entries (${boosted} boosted, ${changes.size - boosted} penalized)`,
+	);
 }
-
 
 function cmdPromote(args: string[]): void {
 	const entryId = args[0];
@@ -502,7 +509,9 @@ function cmdSetPreference(args: string[]): void {
 
 	for (const pattern of POISONING_PATTERNS) {
 		if (pattern.test(summary)) {
-			console.error(`Preference rejected: contains disallowed pattern "${pattern.source}". This looks like a prompt injection attempt.`);
+			console.error(
+				`Preference rejected: contains disallowed pattern "${pattern.source}". This looks like a prompt injection attempt.`,
+			);
 			process.exit(1);
 		}
 	}

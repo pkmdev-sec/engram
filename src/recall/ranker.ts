@@ -40,10 +40,7 @@ export function rankEntries(
 		const recency = Math.max(0, Math.min(1, 1 - ageInDays / 365));
 
 		const score =
-			relevance * 0.4 +
-			recency * 0.3 +
-			effectiveImportance * 0.2 +
-			entry.feedbackScore * 0.1;
+			relevance * 0.4 + recency * 0.3 + effectiveImportance * 0.2 + entry.feedbackScore * 0.1;
 
 		ranked.push({
 			entry,
@@ -91,10 +88,7 @@ function computeRelevance(
 	return (fileOverlap + topicOverlap) / 2;
 }
 
-function countIntersection(
-	items: readonly string[],
-	querySet: ReadonlySet<string>,
-): number {
+function countIntersection(items: readonly string[], querySet: ReadonlySet<string>): number {
 	let count = 0;
 	for (const item of items) {
 		if (querySet.has(item)) count++;
@@ -131,9 +125,23 @@ export function getRecentActivity(projectDir: string, days: number): string[] {
  */
 export function deriveTopicsFromFiles(files: readonly string[]): string[] {
 	const NOISE = new Set([
-		"src", "lib", "dist", "build", "test", "tests", "spec",
-		"index", "main", "utils", "util", "helpers", "helper",
-		"types", "config", "node_modules", "scripts",
+		"src",
+		"lib",
+		"dist",
+		"build",
+		"test",
+		"tests",
+		"spec",
+		"index",
+		"main",
+		"utils",
+		"util",
+		"helpers",
+		"helper",
+		"types",
+		"config",
+		"node_modules",
+		"scripts",
 	]);
 	const topics = new Set<string>();
 	for (const filePath of files) {

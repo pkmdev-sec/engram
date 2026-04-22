@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DistillationConfig, SessionTranscript } from "../../src/types.js";
 import { distill } from "../../src/distill/distiller.js";
+import type { DistillationConfig, SessionTranscript } from "../../src/types.js";
 
 vi.mock("../../src/api/anthropic.js", () => ({
 	callAnthropic: vi.fn(),
@@ -56,11 +56,7 @@ describe("distill", () => {
 
 		await distill(makeTranscript(), makeConfig(), [], "proj-1");
 
-		expect(mockCallAnthropic).toHaveBeenCalledWith(
-			expect.any(String),
-			"sys",
-			"short user message",
-		);
+		expect(mockCallAnthropic).toHaveBeenCalledWith(expect.any(String), "sys", "short user message");
 	});
 
 	it("truncates transcripts longer than 400K chars", async () => {
@@ -69,7 +65,7 @@ describe("distill", () => {
 
 		await distill(makeTranscript(), makeConfig(), [], "proj-1");
 
-		const thirdArg = mockCallAnthropic.mock.calls[0]![2];
+		const thirdArg = mockCallAnthropic.mock.calls[0]?.[2];
 		expect(thirdArg.length).toBeLessThanOrEqual(400_000);
 		expect(thirdArg).toContain("[... ");
 	});

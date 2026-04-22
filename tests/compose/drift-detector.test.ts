@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { detectDrift } from "../../src/compose/drift-detector.js";
 import type { InjectionState } from "../../src/types.js";
 
@@ -6,10 +6,12 @@ import type { InjectionState } from "../../src/types.js";
 // Helper
 // ---------------------------------------------------------------------------
 
-function makeState(overrides: {
-	injectedFiles?: string[];
-	injectedTopics?: string[];
-} = {}): InjectionState {
+function makeState(
+	overrides: {
+		injectedFiles?: string[];
+		injectedTopics?: string[];
+	} = {},
+): InjectionState {
 	return {
 		sessionId: "test-session",
 		injectedEntryIds: new Set(),
@@ -30,10 +32,7 @@ describe("detectDrift", () => {
 		// extractedTopics may include words like "look", "refactor" → topicOverlap ≈ 0.
 		// avgOverlap < 0.3 → drifted = true.
 		const state = makeState({ injectedFiles: [] });
-		const result = detectDrift(
-			"Please look at /src/auth/token.ts and refactor it",
-			state,
-		);
+		const result = detectDrift("Please look at /src/auth/token.ts and refactor it", state);
 
 		expect(result.drifted).toBe(true);
 	});
@@ -70,10 +69,7 @@ describe("detectDrift", () => {
 		// Deep absolute path (/src/compose/templates.ts) and relative single-slash
 		// path (src/types.ts) must both be captured by the two regex patterns.
 		const state = makeState();
-		const result = detectDrift(
-			"Check /src/compose/templates.ts and also src/types.ts",
-			state,
-		);
+		const result = detectDrift("Check /src/compose/templates.ts and also src/types.ts", state);
 
 		expect(result.newFiles).toContain("/src/compose/templates.ts");
 		expect(result.newFiles).toContain("src/types.ts");

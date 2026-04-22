@@ -1,6 +1,6 @@
-import type { RankedEntry, InjectionConfig } from "../types.js";
+import type { InjectionConfig, RankedEntry } from "../types.js";
 import { IMPERATIVE_CATEGORIES } from "../types.js";
-import { composeSessionStart, composeDriftContext } from "./templates.js";
+import { composeDriftContext, composeSessionStart } from "./templates.js";
 
 export interface ComposeResult {
 	readonly text: string;

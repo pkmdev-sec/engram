@@ -52,10 +52,7 @@ export function verifyEntries(
  * Uses a single `git log --name-only` call rather than one call per file.
  * Returns an empty Set on any error (git unavailable, not a repo, etc.).
  */
-function getModifiedFilesSince(
-	oldestTimestamp: string,
-	projectDir: string,
-): Set<string> {
+function getModifiedFilesSince(oldestTimestamp: string, projectDir: string): Set<string> {
 	try {
 		const output = execFileSync(
 			"git",

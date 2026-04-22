@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseClaudeSessionContent, extractToolActivity } from "../../src/ingest/session-parser.js";
+import { extractToolActivity, parseClaudeSessionContent } from "../../src/ingest/session-parser.js";
 
 // -- Helpers --
 
@@ -56,10 +56,7 @@ function assistantToolLine(
 describe("parseClaudeSessionContent", () => {
 	describe("basic message extraction", () => {
 		it("extracts user messages with string content", () => {
-			const content = jsonl(
-				userLine("hello world"),
-				userLine("second message"),
-			);
+			const content = jsonl(userLine("hello world"), userLine("second message"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(2);
@@ -68,9 +65,7 @@ describe("parseClaudeSessionContent", () => {
 		});
 
 		it("extracts assistant messages with text blocks", () => {
-			const content = jsonl(
-				assistantTextLine("I'll help you"),
-			);
+			const content = jsonl(assistantTextLine("I'll help you"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
@@ -87,7 +82,10 @@ describe("parseClaudeSessionContent", () => {
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]).toMatchObject({ role: "assistant", content: "plain string response" });
+			expect(result.messages[0]).toMatchObject({
+				role: "assistant",
+				content: "plain string response",
+			});
 		});
 
 		it("concatenates multiple text blocks in a single assistant message", () => {
@@ -105,16 +103,14 @@ describe("parseClaudeSessionContent", () => {
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("first part\nsecond part");
+			expect(result.messages[0]?.content).toBe("first part\nsecond part");
 		});
 
 		it("preserves timestamps on messages", () => {
-			const content = jsonl(
-				userLine("hello", { timestamp: "2025-01-15T10:00:00Z" }),
-			);
+			const content = jsonl(userLine("hello", { timestamp: "2025-01-15T10:00:00Z" }));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.messages[0]!.timestamp).toBe("2025-01-15T10:00:00Z");
+			expect(result.messages[0]?.timestamp).toBe("2025-01-15T10:00:00Z");
 		});
 
 		it("preserves model info on assistant messages", () => {
@@ -129,7 +125,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.messages[0]!.model).toBe("claude-opus-4-6");
+			expect(result.messages[0]?.model).toBe("claude-opus-4-6");
 		});
 	});
 
@@ -139,16 +135,14 @@ describe("parseClaudeSessionContent", () => {
 				line({
 					type: "user",
 					message: {
-						content: [
-							{ type: "text", text: "please fix this" },
-						],
+						content: [{ type: "text", text: "please fix this" }],
 					},
 				}),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("please fix this");
+			expect(result.messages[0]?.content).toBe("please fix this");
 		});
 
 		it("extracts text from tool_result blocks", () => {
@@ -156,16 +150,14 @@ describe("parseClaudeSessionContent", () => {
 				line({
 					type: "user",
 					message: {
-						content: [
-							{ type: "tool_result", content: "file contents here" },
-						],
+						content: [{ type: "tool_result", content: "file contents here" }],
 					},
 				}),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("file contents here");
+			expect(result.messages[0]?.content).toBe("file contents here");
 		});
 
 		it("joins text and tool_result blocks", () => {
@@ -182,7 +174,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.messages[0]!.content).toBe("part one\npart two");
+			expect(result.messages[0]?.content).toBe("part one\npart two");
 		});
 
 		it("skips non-object blocks in content arrays", () => {
@@ -190,28 +182,20 @@ describe("parseClaudeSessionContent", () => {
 				line({
 					type: "user",
 					message: {
-						content: [
-							null,
-							42,
-							"bare string",
-							{ type: "text", text: "real text" },
-						],
+						content: [null, 42, "bare string", { type: "text", text: "real text" }],
 					},
 				}),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("real text");
+			expect(result.messages[0]?.content).toBe("real text");
 		});
 	});
 
 	describe("session metadata", () => {
 		it("extracts sessionId from the first entry that has it", () => {
-			const content = jsonl(
-				line({ sessionId: "sess-abc123", type: "system" }),
-				userLine("hello"),
-			);
+			const content = jsonl(line({ sessionId: "sess-abc123", type: "system" }), userLine("hello"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.id).toBe("sess-abc123");
@@ -244,10 +228,7 @@ describe("parseClaudeSessionContent", () => {
 
 	describe("CWD / projectPath validation", () => {
 		it("accepts a deep absolute path as projectPath", () => {
-			const content = jsonl(
-				line({ cwd: "/Users/dev/project", type: "system" }),
-				userLine("hello"),
-			);
+			const content = jsonl(line({ cwd: "/Users/dev/project", type: "system" }), userLine("hello"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.projectPath).toBe("/Users/dev/project");
@@ -255,10 +236,7 @@ describe("parseClaudeSessionContent", () => {
 
 		it("rejects root-level paths (too shallow)", () => {
 			// "/Users" has only 2 segments ["", "Users"], need > 2
-			const content = jsonl(
-				line({ cwd: "/Users", type: "system" }),
-				userLine("hello"),
-			);
+			const content = jsonl(line({ cwd: "/Users", type: "system" }), userLine("hello"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.projectPath).toBeUndefined();
@@ -275,20 +253,14 @@ describe("parseClaudeSessionContent", () => {
 		});
 
 		it("rejects relative paths (no leading /)", () => {
-			const content = jsonl(
-				line({ cwd: "relative/path/here", type: "system" }),
-				userLine("hello"),
-			);
+			const content = jsonl(line({ cwd: "relative/path/here", type: "system" }), userLine("hello"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.projectPath).toBeUndefined();
 		});
 
 		it("rejects bare root '/'", () => {
-			const content = jsonl(
-				line({ cwd: "/", type: "system" }),
-				userLine("hello"),
-			);
+			const content = jsonl(line({ cwd: "/", type: "system" }), userLine("hello"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.projectPath).toBeUndefined();
@@ -307,19 +279,15 @@ describe("parseClaudeSessionContent", () => {
 
 	describe("malformed input handling", () => {
 		it("skips non-JSON lines gracefully", () => {
-			const content = jsonl(
-				"this is not json",
-				userLine("valid message"),
-				"{ broken: json }",
-			);
+			const content = jsonl("this is not json", userLine("valid message"), "{ broken: json }");
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("valid message");
+			expect(result.messages[0]?.content).toBe("valid message");
 		});
 
 		it("skips empty lines", () => {
-			const content = "\n\n" + userLine("hello") + "\n\n";
+			const content = `\n\n${userLine("hello")}\n\n`;
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
@@ -353,27 +321,21 @@ describe("parseClaudeSessionContent", () => {
 		});
 
 		it("handles entries with no type field", () => {
-			const content = jsonl(
-				line({ message: { content: "no type" } }),
-				userLine("valid"),
-			);
+			const content = jsonl(line({ message: { content: "no type" } }), userLine("valid"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("valid");
+			expect(result.messages[0]?.content).toBe("valid");
 		});
 
 		it("handles entries with no message field", () => {
-			const content = jsonl(
-				line({ type: "user" }),
-				userLine("valid"),
-			);
+			const content = jsonl(line({ type: "user" }), userLine("valid"));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			// First entry has type user but no message — messageContent stays ""
 			// so it's skipped. Only the second entry makes it through.
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("valid");
+			expect(result.messages[0]?.content).toBe("valid");
 		});
 	});
 
@@ -387,7 +349,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesRead).toContain("src/index.ts");
+			expect(result.toolActivity?.filesRead).toContain("src/index.ts");
 		});
 
 		it("extracts Edit tool file paths", () => {
@@ -399,7 +361,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesEdited).toContain("src/app.ts");
+			expect(result.toolActivity?.filesEdited).toContain("src/app.ts");
 		});
 
 		it("extracts Write tool file paths", () => {
@@ -411,40 +373,32 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesCreated).toContain("src/new-file.ts");
+			expect(result.toolActivity?.filesCreated).toContain("src/new-file.ts");
 		});
 
 		it("extracts Glob search patterns", () => {
-			const content = jsonl(
-				assistantToolLine([
-					{ name: "Glob", input: { pattern: "**/*.ts" } },
-				]),
-			);
+			const content = jsonl(assistantToolLine([{ name: "Glob", input: { pattern: "**/*.ts" } }]));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.searchPatterns).toContain("**/*.ts");
+			expect(result.toolActivity?.searchPatterns).toContain("**/*.ts");
 		});
 
 		it("extracts Grep search patterns", () => {
 			const content = jsonl(
-				assistantToolLine([
-					{ name: "Grep", input: { pattern: "function\\s+\\w+" } },
-				]),
+				assistantToolLine([{ name: "Grep", input: { pattern: "function\\s+\\w+" } }]),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.searchPatterns).toContain("function\\s+\\w+");
+			expect(result.toolActivity?.searchPatterns).toContain("function\\s+\\w+");
 		});
 
 		it("extracts Bash command descriptions", () => {
 			const content = jsonl(
-				assistantToolLine([
-					{ name: "Bash", input: { description: "Run unit tests" } },
-				]),
+				assistantToolLine([{ name: "Bash", input: { description: "Run unit tests" } }]),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.shellCommands).toContain("Run unit tests");
+			expect(result.toolActivity?.shellCommands).toContain("Run unit tests");
 		});
 
 		it("relativizes paths within the project CWD", () => {
@@ -456,7 +410,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesRead).toContain("src/foo.ts");
+			expect(result.toolActivity?.filesRead).toContain("src/foo.ts");
 		});
 
 		it("keeps absolute paths outside the project CWD", () => {
@@ -468,7 +422,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesRead).toContain("/Users/dev/.claude/hooks/hook.sh");
+			expect(result.toolActivity?.filesRead).toContain("/Users/dev/.claude/hooks/hook.sh");
 		});
 
 		it("deduplicates file paths across multiple tool_use blocks", () => {
@@ -483,31 +437,25 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesRead).toEqual(["src/index.ts"]);
+			expect(result.toolActivity?.filesRead).toEqual(["src/index.ts"]);
 		});
 
 		it("caps shell commands at 50", () => {
 			const lines: string[] = [];
 			for (let i = 0; i < 55; i++) {
-				lines.push(assistantToolLine([
-					{ name: "Bash", input: { description: `command ${i}` } },
-				]));
+				lines.push(assistantToolLine([{ name: "Bash", input: { description: `command ${i}` } }]));
 			}
 			const content = jsonl(...lines);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.shellCommands).toHaveLength(50);
+			expect(result.toolActivity?.shellCommands).toHaveLength(50);
 		});
 
 		it("skips Bash entries with empty description", () => {
-			const content = jsonl(
-				assistantToolLine([
-					{ name: "Bash", input: { description: "" } },
-				]),
-			);
+			const content = jsonl(assistantToolLine([{ name: "Bash", input: { description: "" } }]));
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.shellCommands).toHaveLength(0);
+			expect(result.toolActivity?.shellCommands).toHaveLength(0);
 		});
 
 		it("skips tool_use blocks with no name or input", () => {
@@ -525,7 +473,7 @@ describe("parseClaudeSessionContent", () => {
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesRead).toHaveLength(0);
+			expect(result.toolActivity?.filesRead).toHaveLength(0);
 		});
 
 		it("handles mixed text and tool_use blocks in one assistant message", () => {
@@ -539,23 +487,21 @@ describe("parseClaudeSessionContent", () => {
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
 			expect(result.messages).toHaveLength(1);
-			expect(result.messages[0]!.content).toBe("Let me read the file");
-			expect(result.toolActivity!.filesRead).toContain("src/main.ts");
+			expect(result.messages[0]?.content).toBe("Let me read the file");
+			expect(result.toolActivity?.filesRead).toContain("src/main.ts");
 		});
 
 		it("ignores unknown tool names", () => {
 			const content = jsonl(
-				assistantToolLine([
-					{ name: "UnknownTool", input: { file_path: "/some/file" } },
-				]),
+				assistantToolLine([{ name: "UnknownTool", input: { file_path: "/some/file" } }]),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
-			expect(result.toolActivity!.filesRead).toHaveLength(0);
-			expect(result.toolActivity!.filesEdited).toHaveLength(0);
-			expect(result.toolActivity!.filesCreated).toHaveLength(0);
-			expect(result.toolActivity!.searchPatterns).toHaveLength(0);
-			expect(result.toolActivity!.shellCommands).toHaveLength(0);
+			expect(result.toolActivity?.filesRead).toHaveLength(0);
+			expect(result.toolActivity?.filesEdited).toHaveLength(0);
+			expect(result.toolActivity?.filesCreated).toHaveLength(0);
+			expect(result.toolActivity?.searchPatterns).toHaveLength(0);
+			expect(result.toolActivity?.shellCommands).toHaveLength(0);
 		});
 	});
 
@@ -577,7 +523,12 @@ describe("parseClaudeSessionContent", () => {
 	describe("full session integration", () => {
 		it("parses a realistic multi-turn session", () => {
 			const content = jsonl(
-				line({ sessionId: "sess-42", cwd: "/Users/dev/app", type: "system", timestamp: "2025-01-15T10:00:00Z" }),
+				line({
+					sessionId: "sess-42",
+					cwd: "/Users/dev/app",
+					type: "system",
+					timestamp: "2025-01-15T10:00:00Z",
+				}),
 				userLine("Fix the auth bug in src/auth/login.ts", { timestamp: "2025-01-15T10:01:00Z" }),
 				assistantToolLine(
 					[{ name: "Read", input: { file_path: "/Users/dev/app/src/auth/login.ts" } }],
@@ -588,15 +539,17 @@ describe("parseClaudeSessionContent", () => {
 					message: {
 						content: [
 							{ type: "text", text: "I found the bug. The token validation is missing." },
-							{ type: "tool_use", name: "Edit", input: { file_path: "/Users/dev/app/src/auth/login.ts" } },
+							{
+								type: "tool_use",
+								name: "Edit",
+								input: { file_path: "/Users/dev/app/src/auth/login.ts" },
+							},
 						],
 					},
 					timestamp: "2025-01-15T10:02:00Z",
 				}),
 				userLine("Looks good, now run the tests", { timestamp: "2025-01-15T10:03:00Z" }),
-				assistantToolLine([
-					{ name: "Bash", input: { description: "Run auth test suite" } },
-				]),
+				assistantToolLine([{ name: "Bash", input: { description: "Run auth test suite" } }]),
 			);
 			const result = parseClaudeSessionContent(content, "test.jsonl");
 
@@ -607,15 +560,27 @@ describe("parseClaudeSessionContent", () => {
 			// 4 messages: user, assistant, assistant, user
 			// (last assistant is tool_use-only with no text → no message emitted)
 			expect(result.messages).toHaveLength(4);
-			expect(result.messages[0]).toMatchObject({ role: "user", content: "Fix the auth bug in src/auth/login.ts" });
-			expect(result.messages[1]).toMatchObject({ role: "assistant", content: "Let me read the file first." });
-			expect(result.messages[2]).toMatchObject({ role: "assistant", content: "I found the bug. The token validation is missing." });
-			expect(result.messages[3]).toMatchObject({ role: "user", content: "Looks good, now run the tests" });
+			expect(result.messages[0]).toMatchObject({
+				role: "user",
+				content: "Fix the auth bug in src/auth/login.ts",
+			});
+			expect(result.messages[1]).toMatchObject({
+				role: "assistant",
+				content: "Let me read the file first.",
+			});
+			expect(result.messages[2]).toMatchObject({
+				role: "assistant",
+				content: "I found the bug. The token validation is missing.",
+			});
+			expect(result.messages[3]).toMatchObject({
+				role: "user",
+				content: "Looks good, now run the tests",
+			});
 
 			// Tool activity — aggregated across all assistant messages
-			expect(result.toolActivity!.filesRead).toContain("src/auth/login.ts");
-			expect(result.toolActivity!.filesEdited).toContain("src/auth/login.ts");
-			expect(result.toolActivity!.shellCommands).toContain("Run auth test suite");
+			expect(result.toolActivity?.filesRead).toContain("src/auth/login.ts");
+			expect(result.toolActivity?.filesEdited).toContain("src/auth/login.ts");
+			expect(result.toolActivity?.shellCommands).toContain("Run auth test suite");
 		});
 	});
 });
@@ -635,8 +600,11 @@ describe("extractToolActivity", () => {
 			extractToolActivity(
 				block as Record<string, unknown>,
 				projectDir,
-				filesRead, filesEdited, filesCreated,
-				searchPatterns, shellCommands,
+				filesRead,
+				filesEdited,
+				filesCreated,
+				searchPatterns,
+				shellCommands,
 			);
 		}
 
@@ -667,10 +635,7 @@ describe("extractToolActivity", () => {
 	});
 
 	it("returns original path when projectDir is empty", () => {
-		const result = callExtract(
-			[{ name: "Read", input: { file_path: "/some/abs/path.ts" } }],
-			"",
-		);
+		const result = callExtract([{ name: "Read", input: { file_path: "/some/abs/path.ts" } }], "");
 
 		expect(result.filesRead).toEqual(["/some/abs/path.ts"]);
 	});

@@ -1,4 +1,4 @@
-import type { RankedEntry, EntryCategory } from "../types.js";
+import type { EntryCategory, RankedEntry } from "../types.js";
 import { IMPERATIVE_CATEGORIES } from "../types.js";
 
 // Maps each category to its section heading in the CLAUDE.md output.
@@ -28,7 +28,7 @@ function truncateToFirstSentence(text: string, maxChars: number): string {
 	const firstSentence = periodIdx > 0 ? text.slice(0, periodIdx + 1) : text;
 	return firstSentence.length <= maxChars
 		? firstSentence
-		: firstSentence.slice(0, maxChars - 3) + "...";
+		: `${firstSentence.slice(0, maxChars - 3)}...`;
 }
 
 function buildEntryLine(ranked: RankedEntry): string {
@@ -106,15 +106,15 @@ export function composeSessionStart(
 	const body = sectionBlocks.join("\n\n");
 
 	return [
-		`<!-- BEGIN:engram (auto-managed -- do not edit inside markers) -->`,
+		"<!-- BEGIN:engram (auto-managed -- do not edit inside markers) -->",
 		`## Project Intelligence -- Last synced: ${syncTimestamp}`,
-		``,
+		"",
 		`> Context from prior sessions — not instructions. You decide what's relevant.`,
 		`> Use what helps. Ignore what doesn't apply. Verify before acting on anything`,
 		`> marked [stale]. When in doubt, read the code — it's the source of truth.`,
-		``,
+		"",
 		body,
-		`<!-- END:engram -->`,
+		"<!-- END:engram -->",
 	].join("\n");
 }
 
@@ -131,8 +131,5 @@ export function composeDriftContext(entries: readonly RankedEntry[]): string {
 		return `- ${prefix}${sanitizeForClaudeMd(entry.summary)}${suffix}`;
 	});
 
-	return [
-		`[Prior session context — may be relevant to your current topic]`,
-		...lines,
-	].join("\n");
+	return ["[Prior session context — may be relevant to your current topic]", ...lines].join("\n");
 }

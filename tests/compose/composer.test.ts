@@ -1,10 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { compose } from "../../src/compose/composer.js";
-import {
-	DEFAULT_CONFIG,
-	type KnowledgeEntry,
-	type RankedEntry,
-} from "../../src/types.js";
+import { DEFAULT_CONFIG, type KnowledgeEntry, type RankedEntry } from "../../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,12 +32,14 @@ function makeEntry(overrides: Partial<KnowledgeEntry> = {}): KnowledgeEntry {
 	};
 }
 
-function makeRankedEntry(overrides: {
-	entry?: Partial<KnowledgeEntry>;
-	score?: number;
-	isStale?: boolean;
-	filesExist?: boolean;
-} = {}): RankedEntry {
+function makeRankedEntry(
+	overrides: {
+		entry?: Partial<KnowledgeEntry>;
+		score?: number;
+		isStale?: boolean;
+		filesExist?: boolean;
+	} = {},
+): RankedEntry {
 	return {
 		entry: makeEntry(overrides.entry),
 		score: overrides.score ?? 0.5,
@@ -148,9 +146,7 @@ describe("compose", () => {
 
 		const result = compose([entry1, entry2], cfg, "session-start");
 
-		expect(result.includedIds).toEqual(
-			expect.arrayContaining([entry1.entry.id, entry2.entry.id]),
-		);
+		expect(result.includedIds).toEqual(expect.arrayContaining([entry1.entry.id, entry2.entry.id]));
 
 		// File union: all three distinct paths present.
 		expect(result.files.has("src/api.ts")).toBe(true);

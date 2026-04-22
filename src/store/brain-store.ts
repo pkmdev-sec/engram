@@ -1,29 +1,29 @@
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 
 import type { BrainIndex, KnowledgeEntry } from "../types.js";
 import { POISONING_PATTERNS } from "../types.js";
 
 export function isValidEntry(entry: unknown): entry is KnowledgeEntry {
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
-    const record = entry as Record<string, unknown>;
+	if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
+	const record = entry as Record<string, unknown>;
 
-    // Required field checks
-    if (typeof record.id !== "string") return false;
-    if (typeof record.summary !== "string") return false;
-    if (typeof record.reasoning !== "string") return false;
-    if (typeof record.category !== "string") return false;
-    if (typeof record.confidence !== "number") return false;
-    if (typeof record.importance !== "number") return false;
+	// Required field checks
+	if (typeof record.id !== "string") return false;
+	if (typeof record.summary !== "string") return false;
+	if (typeof record.reasoning !== "string") return false;
+	if (typeof record.category !== "string") return false;
+	if (typeof record.confidence !== "number") return false;
+	if (typeof record.importance !== "number") return false;
 
-    // Poisoning check on summary and reasoning
-    for (const pattern of POISONING_PATTERNS) {
-        if (pattern.test(record.summary as string)) return false;
-        if (pattern.test(record.reasoning as string)) return false;
-    }
+	// Poisoning check on summary and reasoning
+	for (const pattern of POISONING_PATTERNS) {
+		if (pattern.test(record.summary as string)) return false;
+		if (pattern.test(record.reasoning as string)) return false;
+	}
 
-    return true;
+	return true;
 }
 
 const BRAIN_FILE = "brain.jsonl";
@@ -103,7 +103,7 @@ export class BrainStore {
 	appendEntries(entries: readonly KnowledgeEntry[]): void {
 		if (entries.length === 0) return;
 
-		const payload = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
+		const payload = `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`;
 		fs.appendFileSync(this.brainPath, payload, "utf8");
 	}
 
@@ -117,10 +117,8 @@ export class BrainStore {
 	 */
 	replaceEntries(entries: readonly KnowledgeEntry[]): void {
 		const payload =
-			entries.length > 0
-				? entries.map((e) => JSON.stringify(e)).join("\n") + "\n"
-				: "";
-		const tmpPath = this.brainPath + ".tmp";
+			entries.length > 0 ? `${entries.map((e) => JSON.stringify(e)).join("\n")}\n` : "";
+		const tmpPath = `${this.brainPath}.tmp`;
 		fs.writeFileSync(tmpPath, payload, "utf8");
 		fs.renameSync(tmpPath, this.brainPath);
 	}
