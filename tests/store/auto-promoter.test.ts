@@ -363,24 +363,45 @@ describe("scanForCrossProjectKnowledge — word overlap", () => {
 });
 
 describe("scanForCrossProjectKnowledge — null remote independence", () => {
-	it("does not quarantine when all projects have null git remotes (non-git dirs are not independent)", () => {
+	it("does not quarantine when all projects have null remotes AND no meta.json", () => {
 		const summary = "always use connection pooling for database access efficiency";
 		const newEntry = makeEntry({ id: "new", summary });
 
-		// Three other projects with matching entries, but all have null remotes
+		// Three other projects with matching entries, but no meta.json → null projectDir
 		for (let i = 0; i < 3; i++) {
 			writeBrain(projectsDir, `proj-null-${i}`, [makeEntry({ id: `m${i}`, summary })]);
 		}
 
-		// git remote throws for all (no remotes) — mockExecFileSync default is to throw
+		// git remote throws for all (no remotes)
 		mockExecFileSync.mockImplementation(() => {
 			throw new Error("not a git repo");
 		});
 
 		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
 
-		// Null remotes are not independent — should NOT quarantine
+		// Null remotes + null projectDir = not independent
 		expect(result.quarantined).toBe(0);
+	});
+
+	it("quarantines when projects have null remotes but different project directories via meta.json", () => {
+		const summary = "always use connection pooling for database access efficiency";
+		const newEntry = makeEntry({ id: "new", summary });
+
+		// Three other projects with matching entries, all non-git but with meta.json
+		for (let i = 0; i < 3; i++) {
+			writeBrain(projectsDir, `proj-nogit-${i}`, [makeEntry({ id: `m${i}`, summary })]);
+			writeMeta(projectsDir, `proj-nogit-${i}`, ""); // creates meta.json with unique projectDir
+		}
+
+		// git remote throws for all (no remotes)
+		mockExecFileSync.mockImplementation(() => {
+			throw new Error("not a git repo");
+		});
+
+		const result = scanForCrossProjectKnowledge([newEntry], "current", tmpDir);
+
+		// Different project dirs = independent even without git
+		expect(result.quarantined).toBe(1);
 	});
 });
 

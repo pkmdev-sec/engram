@@ -64,9 +64,15 @@ export function scanForCrossProjectKnowledge(
 		// Find matching entries across other projects
 		const matchingProjectIds: string[] = [];
 
-		for (const { projectId, entries: brainEntries, remote } of otherBrains) {
-			// Independence check: null remotes mean non-git dirs, which are not independent
-			if (!currentRemote || !remote || currentRemote === remote) continue;
+		for (const { projectId, entries: brainEntries, remote, projectDir } of otherBrains) {
+			// Independence check: projects with the same git remote are not independent.
+			// If either project lacks a remote (non-git), fall back to comparing
+			// project directories — different directories = independent.
+			if (currentRemote && remote) {
+				if (currentRemote === remote) continue;
+			} else {
+				if (!projectDir || projectDir === currentProjectDir) continue;
+			}
 
 			const hasMatch = brainEntries.some(
 				(other) => wordOverlap(entry.summary, other.summary) > OVERLAP_THRESHOLD,
@@ -198,6 +204,7 @@ interface ProjectBrain {
 	projectId: string;
 	entries: KnowledgeEntry[];
 	remote: string | null;
+	projectDir: string | null;
 }
 
 function loadOtherProjectBrains(projectsDir: string, currentProjectId: string): ProjectBrain[] {
@@ -228,11 +235,12 @@ function loadOtherProjectBrains(projectsDir: string, currentProjectId: string): 
 				}
 				if (entries.length > 0) {
 					// Try to find the project dir from the first entry's metadata
-					const projectDir = findProjectDir(join(projectsDir, name));
+					const projDir = findProjectDir(join(projectsDir, name));
 					brains.push({
 						projectId: name,
 						entries,
-						remote: projectDir ? getGitRemote(projectDir) : null,
+						remote: projDir ? getGitRemote(projDir) : null,
+						projectDir: projDir,
 					});
 				}
 			} catch {
