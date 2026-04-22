@@ -19,23 +19,21 @@ New session  ◀── INJECT (CLAUDE.md) ◀── COMPOSE (budget) ◀── R
 ### Pipeline
 
 ```mermaid
-graph TD
-    subgraph Write[" "]
-        direction LR
-        Z([Session ends]) --> A[Session JSONL]
-        A -->|parse| B[Transcript]
+graph LR
+    subgraph Write["Session ends"]
+        direction TB
+        A[Session JSONL] -->|parse| B[Transcript]
         B -->|Opus| C[Raw Entries]
         C -->|validate| D[KnowledgeEntry]
     end
 
     D -->|append| E[(brain.jsonl)]
 
-    subgraph Read[" "]
-        direction LR
+    subgraph Read["New session"]
+        direction TB
         F[Verify] -->|rank| G[Scored]
         G -->|budget| H[Markdown]
         H -->|write| I[CLAUDE.md]
-        I --> Y([New session])
     end
 
     E -->|load| F
