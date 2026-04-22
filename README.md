@@ -9,34 +9,17 @@ Knowledge intelligence layer for AI coding agents. Extracts knowledge from compl
 ## How it works
 
 ```
-Session ends ──▶ DISTILL (Opus) ──▶ VALIDATE (rules) ──▶ STORE
-                                                          │
-                                                    brain.jsonl
-                                                          │
-New session  ◀── INJECT (CLAUDE.md) ◀── COMPOSE (budget) ◀── RECALL (rank)
-```
-
-### Pipeline
-
-```mermaid
-graph LR
-    subgraph Write["Session ends"]
-        direction TB
-        A[Session JSONL] -->|parse| B[Transcript]
-        B -->|Opus| C[Raw Entries]
-        C -->|validate| D[KnowledgeEntry]
-    end
-
-    D -->|append| E[(brain.jsonl)]
-
-    subgraph Read["New session"]
-        direction TB
-        F[Verify] -->|rank| G[Scored]
-        G -->|budget| H[Markdown]
-        H -->|write| I[CLAUDE.md]
-    end
-
-    E -->|load| F
+  ┌─ Session ends ──┐                  ┌── New session ─┐
+  │                 │                  │                │
+  │  Session JSONL  │                  │     Verify     │
+  │       │ parse   │                  │      │ rank    │
+  │   Transcript    │                  │     Scored     │
+  │       │ Opus    │     append       │      │ budget  │
+  │   Raw Entries   │ ──▶ brain.jsonl  │    Markdown    │
+  │       │ validate│      ──▶        │      │ write   │
+  │  KnowledgeEntry │      load       │    CLAUDE.md   │
+  │                 │                  │                │
+  └─────────────────┘                  └────────────────┘
 ```
 
 ### What each stage does
