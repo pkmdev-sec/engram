@@ -166,6 +166,55 @@ describe("queryIndex", () => {
 		expect(result).toEqual([]);
 	});
 
+	it("matches entries in the same directory via prefix", () => {
+		const e1 = makeEntry({ id: "e1", files: ["src/auth/token.ts"], topics: [] });
+		const e2 = makeEntry({ id: "e2", files: ["src/db/connection.ts"], topics: [] });
+		const index = buildIndex([e1, e2], "proj");
+
+		// Querying for a different file in src/auth/ should match e1
+		const result = queryIndex(index, ["src/auth/middleware.ts"], []);
+
+		expect(result).toContain("e1");
+		expect(result).not.toContain("e2");
+	});
+
+	it("matches entries whose files are in the same directory as the query file", () => {
+		const e1 = makeEntry({ id: "e1", files: ["src/auth/login.ts"], topics: [] });
+		const index = buildIndex([e1], "proj");
+
+		// Query file src/auth/logout.ts shares parent dir src/auth/ with e1
+		const result = queryIndex(index, ["src/auth/logout.ts"], []);
+
+		expect(result).toContain("e1");
+	});
+
+	it("does not match unrelated directories", () => {
+		const e1 = makeEntry({ id: "e1", files: ["src/auth/token.ts"], topics: [] });
+		const index = buildIndex([e1], "proj");
+
+		const result = queryIndex(index, ["src/db/connection.ts"], []);
+
+		expect(result).not.toContain("e1");
+	});
+
+	it("matches topics case-insensitively", () => {
+		const e1 = makeEntry({ id: "e1", files: [], topics: ["Authentication"] });
+		const index = buildIndex([e1], "proj");
+
+		const result = queryIndex(index, [], ["authentication"]);
+
+		expect(result).toContain("e1");
+	});
+
+	it("matches topics when query is uppercase and index is mixed case", () => {
+		const e1 = makeEntry({ id: "e1", files: [], topics: ["Redis"] });
+		const index = buildIndex([e1], "proj");
+
+		const result = queryIndex(index, [], ["REDIS"]);
+
+		expect(result).toContain("e1");
+	});
+
 	it("returns empty when queried with empty files and topics", () => {
 		const e1 = makeEntry({ id: "e1", files: ["src/auth.ts"], topics: ["auth"] });
 		const index = buildIndex([e1], "proj");
