@@ -1,4 +1,5 @@
 import type { FeedbackConfig, KnowledgeEntry } from "../types.js";
+import { IMPERATIVE_CATEGORIES } from "../types.js";
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(Math.max(value, min), max);
@@ -51,6 +52,13 @@ export function trackFeedback(
 	for (const entry of injectedEntries) {
 		const used = entryWasUsed(entry, agentResponses);
 
+		// Imperative entries (constraint, gotcha, failed-approach) often guide
+		// behavior silently — the agent follows the rule without quoting it.
+		// Halve the penalty so they survive longer before compaction prunes them.
+		const penalty = IMPERATIVE_CATEGORIES.has(entry.category)
+			? config.penaltyPerIgnore * 0.5
+			: config.penaltyPerIgnore;
+
 		const newScore = used
 			? clamp(
 					entry.feedbackScore + config.boostPerUse,
@@ -58,7 +66,7 @@ export function trackFeedback(
 					config.maxFeedbackScore,
 				)
 			: clamp(
-					entry.feedbackScore - config.penaltyPerIgnore,
+					entry.feedbackScore - penalty,
 					config.minFeedbackScore,
 					config.maxFeedbackScore,
 				);

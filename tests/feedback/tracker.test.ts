@@ -128,6 +128,57 @@ describe("trackFeedback", () => {
 		expect(changed.get(entry.id)).toBe(cfg.minFeedbackScore);
 	});
 
+	it("applies half penalty for imperative category (constraint)", () => {
+		const entry = makeEntry({
+			feedbackScore: 0,
+			category: "constraint",
+			files: ["src/unmentioned.ts"],
+			topics: ["unmentioned"],
+		});
+
+		const changed = trackFeedback(
+			[entry],
+			["Completely unrelated response"],
+			cfg,
+		);
+
+		expect(changed.get(entry.id)).toBeCloseTo(0 - cfg.penaltyPerIgnore * 0.5, 10);
+	});
+
+	it("applies half penalty for imperative category (gotcha)", () => {
+		const entry = makeEntry({
+			feedbackScore: 0,
+			category: "gotcha",
+			files: ["src/unmentioned.ts"],
+			topics: ["unmentioned"],
+		});
+
+		const changed = trackFeedback(
+			[entry],
+			["Completely unrelated response"],
+			cfg,
+		);
+
+		expect(changed.get(entry.id)).toBeCloseTo(0 - cfg.penaltyPerIgnore * 0.5, 10);
+	});
+
+	it("applies full penalty for informational category (architecture)", () => {
+		const entry = makeEntry({
+			feedbackScore: 0,
+			category: "architecture",
+			files: ["src/unmentioned.ts"],
+			topics: ["unmentioned"],
+		});
+
+		const changed = trackFeedback(
+			[entry],
+			["Completely unrelated response"],
+			cfg,
+		);
+
+		expect(changed.get(entry.id)).toBeCloseTo(0 - cfg.penaltyPerIgnore, 10);
+	});
+
 	it("returns empty map when no scores change", () => {
 		// feedbackScore is already at maxFeedbackScore and the entry is used.
 		// clamp(max + boost, min, max) === max === feedbackScore → no change → entry absent from map.
