@@ -126,10 +126,10 @@ describe("rankEntries", () => {
 
 		expect(ranked).toHaveLength(1);
 
-		// score = relevance*0.4 + recency*0.3 + effectiveImportance*0.2 + feedback*0.1
-		//       = 0.5*0.4       + 1.0*0.3     + 1.0*0.2                + 0*0.1
-		//       = 0.20 + 0.30 + 0.20 = 0.70
-		const expectedScore = 0.5 * 0.4 + 1.0 * 0.3 + 1.0 * 0.2 + 0 * 0.1;
+		// score = relevance*0.35 + recency*0.25 + effectiveImportance*0.2 + feedback*0.2
+		//       = 0.5*0.35       + 1.0*0.25     + 1.0*0.2                + 0*0.2
+		//       = 0.175 + 0.25 + 0.20 = 0.625
+		const expectedScore = 0.5 * 0.35 + 1.0 * 0.25 + 1.0 * 0.2 + 0 * 0.2;
 		expect(ranked[0].score).toBeCloseTo(expectedScore, 4);
 	});
 
@@ -192,7 +192,7 @@ describe("rankEntries", () => {
 		const effectiveImportance = entry.importance * cfg.decayDays30; // 0.64
 		const recency = Math.max(0, 1 - ageInDays / 365);
 		// Session-start: relevance = 0.5.
-		const expected = 0.5 * 0.4 + recency * 0.3 + effectiveImportance * 0.2 + 0 * 0.1;
+		const expected = 0.5 * 0.35 + recency * 0.25 + effectiveImportance * 0.2 + 0 * 0.2;
 
 		expect(ranked[0].score).toBeCloseTo(expected, 4);
 	});
@@ -214,20 +214,20 @@ describe("rankEntries", () => {
 
 		const effectiveImportance = entry.importance * cfg.decayDays90; // 0.5
 		const recency = Math.max(0, 1 - ageInDays / 365);
-		const expected = 0.5 * 0.4 + recency * 0.3 + effectiveImportance * 0.2 + 0 * 0.1;
+		const expected = 0.5 * 0.35 + recency * 0.25 + effectiveImportance * 0.2 + 0 * 0.2;
 
 		expect(ranked[0].score).toBeCloseTo(expected, 4);
 	});
 
-	it("feedbackScore contributes 10% of final score", () => {
+	it("feedbackScore contributes 20% of final score", () => {
 		const positive = makeEntry({ feedbackScore: 0.3, files: [], topics: [] });
 		const negative = makeEntry({ feedbackScore: -0.3, files: [], topics: [] });
 
 		const [pos] = rankEntries([positive], [], [], cfg);
 		const [neg] = rankEntries([negative], [], [], cfg);
 
-		// Score difference should be 0.6 * 0.1 = 0.06 (feedback weight is 0.1)
-		expect(pos.score - neg.score).toBeCloseTo(0.06, 4);
+		// Score difference should be 0.6 * 0.2 = 0.12 (feedback weight is 0.2)
+		expect(pos.score - neg.score).toBeCloseTo(0.12, 4);
 	});
 
 	it("excludes entries exactly at importance threshold after decay", () => {
@@ -282,7 +282,7 @@ describe("rankEntries", () => {
 		// But entry might be excluded by importance decay (365 > 90 → 0.5 factor)
 		// importance 1.0 * 0.5 = 0.5, passes threshold
 		if (ranked.length > 0) {
-			const recencyContribution = ranked[0].score - (0.5 * 0.4 + 0.5 * 0.2 + 0 * 0.1);
+			const recencyContribution = ranked[0].score - (0.5 * 0.35 + 0.5 * 0.2 + 0 * 0.2);
 			expect(recencyContribution).toBeCloseTo(0, 2); // ~0 recency
 		}
 	});
